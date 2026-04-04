@@ -1,0 +1,134 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   AUTOAGENTE — DESIGN TOKENS
+   Para mudar a identidade visual do painel inteiro, edite APENAS esta seção.
+   Todos os componentes lêem estas variáveis automaticamente.
+═══════════════════════════════════════════════════════════════════════════ */
+:root {
+  /* ── Cor Primária ──────────────────────────────────────────────────────── */
+  --ds-primary-50:  #EFF6FF;
+  --ds-primary-100: #DBEAFE;
+  --ds-primary-600: #2563EB;   /* ← ALTERE AQUI para mudar a cor principal */
+  --ds-primary-700: #1D4ED8;
+  --ds-primary-800: #1E40AF;
+  --ds-primary-900: #1E3A8A;
+
+  /* ── Feedback ──────────────────────────────────────────────────────────── */
+  --ds-success:  #16A34A;
+  --ds-error:    #DC2626;
+  --ds-warning:  #D97706;
+
+  /* ── Sidebar ───────────────────────────────────────────────────────────── */
+  --ds-sidebar-bg: #0F172A;    /* ← ALTERE AQUI para mudar o fundo da sidebar */
+
+  /* ── Superfície ─────────────────────────────────────────────────────────── */
+  --ds-border:  #E2E8F0;
+  --ds-page-bg: #F8FAFC;
+
+  /* ═══════════════════════════════════════════════════════════════════════
+     Mapeamento para shadcn/ui — NÃO edite abaixo desta linha
+     (as variáveis referenciam os tokens acima)
+  ═══════════════════════════════════════════════════════════════════════ */
+  --background:            var(--ds-page-bg);
+  --foreground:            #1E293B;
+  --card:                  #ffffff;
+  --card-foreground:       #1E293B;
+  --popover:               #ffffff;
+  --popover-foreground:    #1E293B;
+  --primary:               var(--ds-primary-600);
+  --primary-foreground:    #ffffff;
+  --secondary:             #F1F5F9;
+  --secondary-foreground:  #334155;
+  --muted:                 #F1F5F9;
+  --muted-foreground:      #64748B;
+  --accent:                var(--ds-primary-50);
+  --accent-foreground:     var(--ds-primary-800);
+  --destructive:           var(--ds-error);
+  --border:                var(--ds-border);
+  --input:                 var(--ds-border);
+  --ring:                  var(--ds-primary-600);
+  --radius:                0.5rem;
+
+  /* Sidebar (shadcn sidebar component vars) */
+  --sidebar:                        var(--ds-sidebar-bg);
+  --sidebar-foreground:             #CBD5E1;
+  --sidebar-primary:                var(--ds-primary-600);
+  --sidebar-primary-foreground:     #ffffff;
+  --sidebar-accent:                 rgba(255,255,255,0.06);
+  --sidebar-accent-foreground:      #CBD5E1;
+  --sidebar-border:                 rgba(255,255,255,0.07);
+  --sidebar-ring:                   var(--ds-primary-600);
+}
+
+/* ─── Tailwind v4: mapeia tokens para classes utilitárias ─────────────────── */
+@theme inline {
+  /* shadcn tokens */
+  --color-background:              var(--background);
+  --color-foreground:              var(--foreground);
+  --color-card:                    var(--card);
+  --color-card-foreground:         var(--card-foreground);
+  --color-popover:                 var(--popover);
+  --color-popover-foreground:      var(--popover-foreground);
+  --color-primary:                 var(--primary);
+  --color-primary-foreground:      var(--primary-foreground);
+  --color-secondary:               var(--secondary);
+  --color-secondary-foreground:    var(--secondary-foreground);
+  --color-muted:                   var(--muted);
+  --color-muted-foreground:        var(--muted-foreground);
+  --color-accent:                  var(--accent);
+  --color-accent-foreground:       var(--accent-foreground);
+  --color-destructive:             var(--destructive);
+  --color-border:                  var(--border);
+  --color-input:                   var(--input);
+  --color-ring:                    var(--ring);
+  --color-sidebar:                 var(--sidebar);
+  --color-sidebar-foreground:      var(--sidebar-foreground);
+  --color-sidebar-primary:         var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent:          var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border:          var(--sidebar-border);
+  --color-sidebar-ring:            var(--sidebar-ring);
+
+  /* design system extended — uso: bg-ds-primary-600, text-ds-success, etc. */
+  --color-ds-primary-50:   var(--ds-primary-50);
+  --color-ds-primary-100:  var(--ds-primary-100);
+  --color-ds-primary-600:  var(--ds-primary-600);
+  --color-ds-primary-700:  var(--ds-primary-700);
+  --color-ds-primary-800:  var(--ds-primary-800);
+  --color-ds-primary-900:  var(--ds-primary-900);
+  --color-ds-success:      var(--ds-success);
+  --color-ds-error:        var(--ds-error);
+  --color-ds-warning:      var(--ds-warning);
+  --color-ds-sidebar:      var(--ds-sidebar-bg);
+  --color-ds-page:         var(--ds-page-bg);
+  --color-ds-border:       var(--ds-border);
+
+  /* border radius */
+  --radius-sm:  calc(var(--radius) * 0.6);
+  --radius-md:  calc(var(--radius) * 0.8);
+  --radius-lg:  var(--radius);
+  --radius-xl:  calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+
+  /* fonte */
+  --font-sans: var(--font-inter);
+  --font-mono: var(--font-geist-mono);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+  }
+  html {
+    @apply font-sans;
+  }
+}
