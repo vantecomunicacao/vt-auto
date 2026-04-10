@@ -1,7 +1,6 @@
 'use client'
 
-import { useState } from 'react'
-import { LeadModal } from './LeadModal'
+import { formatPhone } from '@/lib/formatPhone'
 import { FavoritesProvider } from '../../FavoritesContext'
 import { FavoriteButton } from '../../FavoriteButton'
 
@@ -15,6 +14,7 @@ interface VehicleSidebarProps {
   storeCity: string | null
   storeState: string | null
   storePhone: string | null
+  storeLandline: string | null
   primaryColor: string
   secondaryColor: string
   vehicleName: string
@@ -36,11 +36,9 @@ function WaIcon() {
 }
 
 export function VehicleSidebar({
-  price, priceOld, priceNegotiable, waLink, storeName, storeSlug, storeCity, storeState, storePhone,
-  primaryColor, secondaryColor, vehicleName, storeId, vehicleId,
+  price, priceOld, priceNegotiable, waLink, storeName, storeSlug, storeCity, storeState, storePhone, storeLandline,
+  primaryColor, vehicleId,
 }: VehicleSidebarProps) {
-  const [leadOpen, setLeadOpen] = useState(false)
-
   return (
     <FavoritesProvider storeSlug={storeSlug}>
       <div className="lg:sticky lg:top-6 bg-white border border-gray-200 rounded-2xl shadow-sm p-6 space-y-4">
@@ -75,36 +73,17 @@ export function VehicleSidebar({
           </a>
         )}
 
-        {/* Lead form CTA */}
-        <button
-          onClick={() => setLeadOpen(true)}
-          className="flex items-center justify-center gap-2 w-full font-semibold py-3 rounded-2xl transition-opacity text-sm hover:opacity-90 text-white"
-          style={{ backgroundColor: secondaryColor }}
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25m19.5 0v.243a2.25 2.25 0 0 1-1.07 1.916l-7.5 4.615a2.25 2.25 0 0 1-2.36 0L3.32 8.91a2.25 2.25 0 0 1-1.07-1.916V6.75" />
-          </svg>
-          Tenho interesse
-        </button>
-
         {/* Store contact info */}
         <div className="border-t border-gray-100 pt-4 text-sm text-gray-500 space-y-1">
           <p className="font-medium text-gray-700">{storeName}</p>
           {(storeCity || storeState) && (
             <p>{[storeCity, storeState].filter(Boolean).join(' — ')}</p>
           )}
-          {storePhone && <p>{storePhone}</p>}
+          {storePhone && <p>WhatsApp {formatPhone(storePhone)}</p>}
+          {storeLandline && <p>Telefone {formatPhone(storeLandline)}</p>}
         </div>
       </div>
 
-      <LeadModal
-        open={leadOpen}
-        onClose={() => setLeadOpen(false)}
-        vehicleName={vehicleName}
-        storeId={storeId}
-        vehicleId={vehicleId}
-        primaryColor={primaryColor}
-      />
     </FavoritesProvider>
   )
 }

@@ -19,7 +19,7 @@ export default async function StorefrontSettingsPage() {
 
   const { data: store } = await admin
     .from('stores')
-    .select('slug, storefront_settings')
+    .select('slug, storefront_settings, primary_color, secondary_color, logo_url, description, address')
     .eq('id', storeUser.store_id)
     .single()
 
@@ -28,6 +28,13 @@ export default async function StorefrontSettingsPage() {
       <StorefrontSettingsContent
         slug={store?.slug ?? ''}
         initialSettings={store?.storefront_settings ?? {}}
+        initialStoreData={{
+          primary_color: store?.primary_color ?? '',
+          secondary_color: store?.secondary_color ?? '',
+          logo_url: store?.logo_url ?? '',
+          description: store?.description ?? '',
+          address: store?.address ?? '',
+        }}
       />
     </PanelLayout>
   )

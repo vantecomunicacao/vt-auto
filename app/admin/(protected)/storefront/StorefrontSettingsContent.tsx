@@ -10,12 +10,12 @@ import { Textarea } from '@/components/ui/textarea'
 import { Switch } from '@/components/ui/switch'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { useUnsavedChanges } from '@/hooks/useUnsavedChanges'
+import { UnsavedChangesBar } from '@/components/admin/UnsavedChangesBar'
 
 export type StorefrontSettings = {
-  // 0. Tema
-  layout_theme: 'padrao' | 'vtlx' | 'vtclass'
-
   // 1. Layout
+  layout_theme: 'padrao' | 'vtlx' | 'vtclass'
   grid_cols: '2' | '3' | '4'
   card_style: 'shadow' | 'flat' | 'bordered'
 
@@ -41,7 +41,6 @@ export type StorefrontSettings = {
 
   // 6. Sobre a loja
   about_enabled: boolean
-  about_text: string
   about_image_url: string
 
   // 7. Exibir specs nos cards
@@ -58,12 +57,19 @@ export type StorefrontSettings = {
   // 9. Funcionalidades
   financing_simulator: boolean
 
-  // 10. Redes sociais & endereço
+  // 10. Redes sociais
   instagram_url: string
   facebook_url: string
   tiktok_url: string
   youtube_url: string
-  store_address: string
+}
+
+export type StoreData = {
+  primary_color: string
+  secondary_color: string
+  logo_url: string
+  description: string
+  address: string
 }
 
 const DEFAULTS: StorefrontSettings = {
@@ -83,7 +89,6 @@ const DEFAULTS: StorefrontSettings = {
   banner_subtitle: '',
   banner_image_url: '',
   about_enabled: false,
-  about_text: '',
   about_image_url: '',
   show_mileage: true,
   show_year: true,
@@ -97,30 +102,51 @@ const DEFAULTS: StorefrontSettings = {
   facebook_url: '',
   tiktok_url: '',
   youtube_url: '',
-  store_address: '',
+}
+
+const STORE_DEFAULTS: StoreData = {
+  primary_color: '#2563EB',
+  secondary_color: '#1E40AF',
+  logo_url: '',
+  description: '',
+  address: '',
 }
 
 interface Props {
   slug: string
   initialSettings: Partial<StorefrontSettings>
+  initialStoreData: Partial<StoreData>
 }
 
-export function StorefrontSettingsContent({ slug, initialSettings }: Props) {
-  const [settings, setSettings] = useState<StorefrontSettings>({ ...DEFAULTS, ...initialSettings })
+export function StorefrontSettingsContent({ slug, initialSettings, initialStoreData }: Props) {
+  const initSettings = { ...DEFAULTS, ...initialSettings }
+  const initStore: StoreData = { ...STORE_DEFAULTS, ...initialStoreData }
+
+  const [settings, setSettings] = useState<StorefrontSettings>(initSettings)
+  const [savedSettings, setSavedSettings] = useState<StorefrontSettings>(initSettings)
+
+  const [storeData, setStoreData] = useState<StoreData>(initStore)
+  const [savedStoreData, setSavedStoreData] = useState<StoreData>(initStore)
+
   const [saving, setSaving] = useState(false)
+
+  const { isDirty: settingsDirty } = useUnsavedChanges(settings, savedSettings)
+  const { isDirty: storeDirty } = useUnsavedChanges(storeData, savedStoreData)
+  const isDirty = settingsDirty || storeDirty
 
   function set<K extends keyof StorefrontSettings>(key: K, value: StorefrontSettings[K]) {
     setSettings(s => {
       const next = { ...s, [key]: value }
-      // Se mudar para Padrão, força o estilo de card com sombra
-      if (key === 'layout_theme' && value === 'padrao') {
-        next.card_style = 'shadow'
-      }
+      if (key === 'layout_theme' && value === 'padrao') next.card_style = 'shadow'
       return next
     })
   }
 
-  async function save() {
+  function setStore<K extends keyof StoreData>(key: K, value: StoreData[K]) {
+    setStoreData(s => ({ ...s, [key]: value }))
+  }
+
+  async function saveStorefront() {
     setSaving(true)
     try {
       const res = await fetch('/api/storefront-settings', {
@@ -129,7 +155,83 @@ export function StorefrontSettingsContent({ slug, initialSettings }: Props) {
         body: JSON.stringify(settings),
       })
       if (!res.ok) throw new Error()
+      setSavedSettings(settings)
       toast.success('Configurações da vitrine salvas!')
+    } catch {
+      toast.error('Erro ao salvar.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function saveStoreData() {
+    setSaving(true)
+    try {
+      const res = await fetch('/api/settings', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(storeData),
+      })
+      if (!res.ok) throw new Error()
+      setSavedStoreData(storeData)
+      toast.success('Identidade da vitrine salva!')
+    } catch {
+      toast.error('Erro ao salvar.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function saveAbout() {
+    setSaving(true)
+    try {
+      const [r1, r2] = await Promise.all([
+        fetch('/api/settings', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ description: storeData.description }),
+        }),
+        fetch('/api/storefront-settings', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ about_enabled: settings.about_enabled, about_image_url: settings.about_image_url }),
+        }),
+      ])
+      if (!r1.ok || !r2.ok) throw new Error()
+      setSavedStoreData(d => ({ ...d, description: storeData.description }))
+      setSavedSettings(s => ({ ...s, about_enabled: settings.about_enabled, about_image_url: settings.about_image_url }))
+      toast.success('Sobre a loja salvo!')
+    } catch {
+      toast.error('Erro ao salvar.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function saveContato() {
+    setSaving(true)
+    try {
+      const [r1, r2] = await Promise.all([
+        fetch('/api/settings', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ address: storeData.address }),
+        }),
+        fetch('/api/storefront-settings', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            instagram_url: settings.instagram_url,
+            facebook_url: settings.facebook_url,
+            tiktok_url: settings.tiktok_url,
+            youtube_url: settings.youtube_url,
+          }),
+        }),
+      ])
+      if (!r1.ok || !r2.ok) throw new Error()
+      setSavedStoreData(d => ({ ...d, address: storeData.address }))
+      setSavedSettings(s => ({ ...s, instagram_url: settings.instagram_url, facebook_url: settings.facebook_url, tiktok_url: settings.tiktok_url, youtube_url: settings.youtube_url }))
+      toast.success('Contato salvo!')
     } catch {
       toast.error('Erro ao salvar.')
     } finally {
@@ -139,8 +241,18 @@ export function StorefrontSettingsContent({ slug, initialSettings }: Props) {
 
   const vitrineUrl = slug ? `/storefront/${slug}` : null
 
+  const SaveBtn = ({ onClick, label = 'Salvar' }: { onClick: () => void; label?: string }) => (
+    <div className="flex justify-end pt-2">
+      <Button onClick={onClick} disabled={saving} className="h-9 px-5 text-sm text-white" style={{ background: 'var(--ds-primary-600)' }}>
+        {saving ? <><Loader2 size={14} className="animate-spin mr-2" />Salvando...</> : label}
+      </Button>
+    </div>
+  )
+
   return (
     <div className="max-w-2xl space-y-6">
+      <UnsavedChangesBar isDirty={isDirty} />
+
       {/* Link para a vitrine */}
       {vitrineUrl && (
         <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 flex items-center justify-between gap-3">
@@ -161,18 +273,14 @@ export function StorefrontSettingsContent({ slug, initialSettings }: Props) {
         </div>
       )}
 
-      <Tabs defaultValue="layout">
+      <Tabs defaultValue="identidade">
         <TabsList className="bg-slate-100 p-1 rounded-lg h-auto flex-wrap gap-1">
           {[
-            ['layout',   'Layout'],
-            ['order',    'Ordenação'],
-            ['filters',  'Filtros'],
-            ['texts',    'Textos'],
-            ['banner',   'Banner'],
-            ['about',    'Sobre'],
-            ['specs',    'Cards'],
-            ['buttons',  'Botões'],
-            ['contact',  'Contato'],
+            ['identidade', 'Identidade'],
+            ['layout',     'Layout'],
+            ['conteudo',   'Conteúdo'],
+            ['catalogo',   'Catálogo'],
+            ['contato',    'Contato'],
           ].map(([v, l]) => (
             <TabsTrigger key={v} value={v} className="text-xs data-[state=active]:bg-white data-[state=active]:shadow-sm rounded-md px-3 py-2">
               {l}
@@ -180,115 +288,81 @@ export function StorefrontSettingsContent({ slug, initialSettings }: Props) {
           ))}
         </TabsList>
 
-        {/* 1. LAYOUT */}
+        {/* ── IDENTIDADE ─────────────────────────────────────────────────── */}
+        <TabsContent value="identidade" className="space-y-4 mt-4">
+          <div className="bg-card border border-border rounded-xl p-5 space-y-5">
+            <div>
+              <Label className="text-sm font-medium text-slate-700 mb-2 block">Cor principal</Label>
+              <div className="flex items-center gap-3">
+                <input type="color" value={storeData.primary_color} onChange={e => setStore('primary_color', e.target.value)} className="w-12 h-10 rounded-lg border border-border cursor-pointer p-0.5" />
+                <Input value={storeData.primary_color} onChange={e => setStore('primary_color', e.target.value)} className="h-10 font-mono" />
+              </div>
+            </div>
+            <div>
+              <Label className="text-sm font-medium text-slate-700 mb-2 block">Cor secundária</Label>
+              <div className="flex items-center gap-3">
+                <input type="color" value={storeData.secondary_color} onChange={e => setStore('secondary_color', e.target.value)} className="w-12 h-10 rounded-lg border border-border cursor-pointer p-0.5" />
+                <Input value={storeData.secondary_color} onChange={e => setStore('secondary_color', e.target.value)} className="h-10 font-mono" />
+              </div>
+            </div>
+            <div className="rounded-xl overflow-hidden border border-border">
+              <div className="p-4 text-white text-sm font-medium" style={{ background: storeData.primary_color }}>
+                Nome da Loja
+              </div>
+              <div className="p-3 text-white text-xs" style={{ background: storeData.secondary_color }}>
+                Veículos disponíveis · Fale conosco
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-sm font-medium text-slate-700">URL do logotipo</Label>
+              <Input value={storeData.logo_url} onChange={e => setStore('logo_url', e.target.value)} placeholder="https://..." className="h-10" />
+              <p className="text-xs text-muted-foreground">Link direto para a imagem do logo (PNG ou SVG com fundo transparente)</p>
+            </div>
+          </div>
+          <SaveBtn onClick={saveStoreData} label="Salvar identidade" />
+        </TabsContent>
+
+        {/* ── LAYOUT ─────────────────────────────────────────────────────── */}
         <TabsContent value="layout" className="space-y-4 mt-4">
           <div className="bg-card border border-border rounded-xl p-5 space-y-5">
-
-            {/* Theme picker */}
             <div className="space-y-2">
               <Label className="text-sm font-medium text-slate-700">Modelo da vitrine</Label>
               <p className="text-xs text-muted-foreground">Escolha o estilo visual da sua loja</p>
               <div className="grid grid-cols-3 gap-3 mt-2">
-
                 {/* Padrão */}
-                <button
-                  onClick={() => set('layout_theme', 'padrao')}
-                  className={`relative rounded-xl border-2 overflow-hidden text-left transition-all ${settings.layout_theme === 'padrao' ? 'border-blue-600 shadow-md' : 'border-border hover:border-slate-300'}`}
-                >
-                  {settings.layout_theme === 'padrao' && (
-                    <span className="absolute top-2 right-2 z-10 w-5 h-5 bg-blue-600 rounded-full flex items-center justify-center">
-                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="white" className="w-3 h-3"><path fillRule="evenodd" d="M16.704 4.153a.75.75 0 0 1 .143 1.052l-8 10.5a.75.75 0 0 1-1.127.075l-4.5-4.5a.75.75 0 0 1 1.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 0 1 1.05-.143Z" clipRule="evenodd"/></svg>
-                    </span>
-                  )}
-                  {/* Preview Padrão */}
+                <button onClick={() => set('layout_theme', 'padrao')} className={`relative rounded-xl border-2 overflow-hidden text-left transition-all ${settings.layout_theme === 'padrao' ? 'border-blue-600 shadow-md' : 'border-border hover:border-slate-300'}`}>
+                  {settings.layout_theme === 'padrao' && <span className="absolute top-2 right-2 z-10 w-5 h-5 bg-blue-600 rounded-full flex items-center justify-center"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="white" className="w-3 h-3"><path fillRule="evenodd" d="M16.704 4.153a.75.75 0 0 1 .143 1.052l-8 10.5a.75.75 0 0 1-1.127.075l-4.5-4.5a.75.75 0 0 1 1.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 0 1 1.05-.143Z" clipRule="evenodd"/></svg></span>}
                   <div className="bg-white p-2 space-y-1.5">
                     <div className="h-2 bg-blue-600 rounded-sm w-full" />
                     <div className="grid grid-cols-2 gap-1">
-                      {[0,1,2,3].map(i => (
-                        <div key={i} className="bg-gray-100 rounded-lg overflow-hidden">
-                          <div className="h-8 bg-gray-200" />
-                          <div className="p-1 space-y-0.5">
-                            <div className="h-1.5 bg-gray-300 rounded w-4/5" />
-                            <div className="h-1.5 bg-blue-400 rounded w-3/5" />
-                            <div className="h-3 bg-blue-600 rounded-md w-full mt-1" />
-                          </div>
-                        </div>
-                      ))}
+                      {[0,1,2,3].map(i => (<div key={i} className="bg-gray-100 rounded-lg overflow-hidden"><div className="h-8 bg-gray-200" /><div className="p-1 space-y-0.5"><div className="h-1.5 bg-gray-300 rounded w-4/5" /><div className="h-1.5 bg-blue-400 rounded w-3/5" /><div className="h-3 bg-blue-600 rounded-md w-full mt-1" /></div></div>))}
                     </div>
                   </div>
-                  <div className="px-2 py-1.5 bg-white border-t border-gray-100">
-                    <p className="text-xs font-semibold text-slate-700">Padrão</p>
-                    <p className="text-xs text-muted-foreground">Clássico com botões</p>
-                  </div>
+                  <div className="px-2 py-1.5 bg-white border-t border-gray-100"><p className="text-xs font-semibold text-slate-700">Padrão</p><p className="text-xs text-muted-foreground">Clássico com botões</p></div>
                 </button>
-
                 {/* VTLX */}
-                <button
-                  onClick={() => set('layout_theme', 'vtlx')}
-                  className={`relative rounded-xl border-2 overflow-hidden text-left transition-all ${settings.layout_theme === 'vtlx' ? 'border-blue-600 shadow-md' : 'border-border hover:border-slate-300'}`}
-                >
-                  {settings.layout_theme === 'vtlx' && (
-                    <span className="absolute top-2 right-2 z-10 w-5 h-5 bg-blue-600 rounded-full flex items-center justify-center">
-                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="white" className="w-3 h-3"><path fillRule="evenodd" d="M16.704 4.153a.75.75 0 0 1 .143 1.052l-8 10.5a.75.75 0 0 1-1.127.075l-4.5-4.5a.75.75 0 0 1 1.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 0 1 1.05-.143Z" clipRule="evenodd"/></svg>
-                    </span>
-                  )}
-                  {/* Preview VTLX */}
+                <button onClick={() => set('layout_theme', 'vtlx')} className={`relative rounded-xl border-2 overflow-hidden text-left transition-all ${settings.layout_theme === 'vtlx' ? 'border-blue-600 shadow-md' : 'border-border hover:border-slate-300'}`}>
+                  {settings.layout_theme === 'vtlx' && <span className="absolute top-2 right-2 z-10 w-5 h-5 bg-blue-600 rounded-full flex items-center justify-center"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="white" className="w-3 h-3"><path fillRule="evenodd" d="M16.704 4.153a.75.75 0 0 1 .143 1.052l-8 10.5a.75.75 0 0 1-1.127.075l-4.5-4.5a.75.75 0 0 1 1.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 0 1 1.05-.143Z" clipRule="evenodd"/></svg></span>}
                   <div className="bg-gray-50 p-2 space-y-1.5">
                     <div className="h-2 bg-gray-800 rounded-sm w-full" />
                     <div className="h-4 bg-gray-700 rounded-md w-full" />
                     <div className="grid grid-cols-2 gap-1">
-                      {[0,1,2,3].map(i => (
-                        <div key={i} className="bg-white rounded-lg overflow-hidden border border-gray-100">
-                          <div className="relative h-8 bg-gray-200">
-                            <div className="absolute top-0 left-0 right-0 h-2 bg-purple-500" />
-                          </div>
-                          <div className="p-1 space-y-0.5">
-                            <div className="h-1.5 bg-gray-300 rounded w-4/5" />
-                            <div className="h-2 bg-gray-800 rounded w-3/5 font-bold" />
-                          </div>
-                        </div>
-                      ))}
+                      {[0,1,2,3].map(i => (<div key={i} className="bg-white rounded-lg overflow-hidden border border-gray-100"><div className="relative h-8 bg-gray-200"><div className="absolute top-0 left-0 right-0 h-2 bg-purple-500" /></div><div className="p-1 space-y-0.5"><div className="h-1.5 bg-gray-300 rounded w-4/5" /><div className="h-2 bg-gray-800 rounded w-3/5 font-bold" /></div></div>))}
                     </div>
                   </div>
-                  <div className="px-2 py-1.5 bg-white border-t border-gray-100">
-                    <p className="text-xs font-semibold text-slate-700">VTLX</p>
-                    <p className="text-xs text-muted-foreground">Moderno, estilo marketplace</p>
-                  </div>
+                  <div className="px-2 py-1.5 bg-white border-t border-gray-100"><p className="text-xs font-semibold text-slate-700">VTLX</p><p className="text-xs text-muted-foreground">Moderno, estilo marketplace</p></div>
                 </button>
-
                 {/* VTClass */}
-                <button
-                  onClick={() => set('layout_theme', 'vtclass')}
-                  className={`relative rounded-xl border-2 overflow-hidden text-left transition-all ${settings.layout_theme === 'vtclass' ? 'border-blue-600 shadow-md' : 'border-border hover:border-slate-300'}`}
-                >
-                  {settings.layout_theme === 'vtclass' && (
-                    <span className="absolute top-2 right-2 z-10 w-5 h-5 bg-blue-600 rounded-full flex items-center justify-center">
-                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="white" className="w-3 h-3"><path fillRule="evenodd" d="M16.704 4.153a.75.75 0 0 1 .143 1.052l-8 10.5a.75.75 0 0 1-1.127.075l-4.5-4.5a.75.75 0 0 1 1.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 0 1 1.05-.143Z" clipRule="evenodd"/></svg>
-                    </span>
-                  )}
-                  {/* Preview VTClass */}
+                <button onClick={() => set('layout_theme', 'vtclass')} className={`relative rounded-xl border-2 overflow-hidden text-left transition-all ${settings.layout_theme === 'vtclass' ? 'border-blue-600 shadow-md' : 'border-border hover:border-slate-300'}`}>
+                  {settings.layout_theme === 'vtclass' && <span className="absolute top-2 right-2 z-10 w-5 h-5 bg-blue-600 rounded-full flex items-center justify-center"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="white" className="w-3 h-3"><path fillRule="evenodd" d="M16.704 4.153a.75.75 0 0 1 .143 1.052l-8 10.5a.75.75 0 0 1-1.127.075l-4.5-4.5a.75.75 0 0 1 1.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 0 1 1.05-.143Z" clipRule="evenodd"/></svg></span>}
                   <div className="bg-[#DDDDDD] p-2 space-y-1.5">
                     <div className="h-2 bg-gray-800 rounded-none w-full" />
                     <div className="grid grid-cols-2 gap-1">
-                      {[0,1,2,3].map(i => (
-                        <div key={i} className="bg-white overflow-hidden">
-                          <div className="relative h-8 bg-gray-200">
-                            <div className="absolute bottom-0 left-0 right-0 h-2 bg-amber-600" />
-                          </div>
-                          <div className="p-1 space-y-0.5 text-center">
-                            <div className="h-1.5 bg-gray-800 rounded-none w-4/5 mx-auto" />
-                            <div className="h-2 bg-amber-600 rounded-none w-3/5 mx-auto" />
-                          </div>
-                        </div>
-                      ))}
+                      {[0,1,2,3].map(i => (<div key={i} className="bg-white overflow-hidden"><div className="relative h-8 bg-gray-200"><div className="absolute bottom-0 left-0 right-0 h-2 bg-amber-600" /></div><div className="p-1 space-y-0.5 text-center"><div className="h-1.5 bg-gray-800 rounded-none w-4/5 mx-auto" /><div className="h-2 bg-amber-600 rounded-none w-3/5 mx-auto" /></div></div>))}
                     </div>
                   </div>
-                  <div className="px-2 py-1.5 bg-white border-t border-gray-100">
-                    <p className="text-xs font-semibold text-slate-700">VTClass</p>
-                    <p className="text-xs text-muted-foreground">Clássico, traços retos</p>
-                  </div>
+                  <div className="px-2 py-1.5 bg-white border-t border-gray-100"><p className="text-xs font-semibold text-slate-700">VTClass</p><p className="text-xs text-muted-foreground">Clássico, traços retos</p></div>
                 </button>
-
               </div>
             </div>
 
@@ -297,15 +371,7 @@ export function StorefrontSettingsContent({ slug, initialSettings }: Props) {
               <p className="text-xs text-muted-foreground">Quantos carros por linha na vitrine</p>
               <div className="flex gap-3 mt-2">
                 {(['2', '3', '4'] as const).map(col => (
-                  <button
-                    key={col}
-                    onClick={() => set('grid_cols', col)}
-                    className={`flex-1 py-3 rounded-lg border-2 text-sm font-medium transition-colors ${
-                      settings.grid_cols === col
-                        ? 'border-blue-600 bg-blue-50 text-blue-700'
-                        : 'border-border text-muted-foreground hover:border-slate-300'
-                    }`}
-                  >
+                  <button key={col} onClick={() => set('grid_cols', col)} className={`flex-1 py-3 rounded-lg border-2 text-sm font-medium transition-colors ${settings.grid_cols === col ? 'border-blue-600 bg-blue-50 text-blue-700' : 'border-border text-muted-foreground hover:border-slate-300'}`}>
                     {col}
                   </button>
                 ))}
@@ -313,33 +379,100 @@ export function StorefrontSettingsContent({ slug, initialSettings }: Props) {
               <p className="text-xs text-muted-foreground mt-1">Mobile sempre exibe 2 colunas</p>
             </div>
           </div>
+          <SaveBtn onClick={saveStorefront} label="Salvar layout" />
         </TabsContent>
 
-        {/* 2. ORDENAÇÃO */}
-        <TabsContent value="order" className="space-y-4 mt-4">
+        {/* ── CONTEÚDO ───────────────────────────────────────────────────── */}
+        <TabsContent value="conteudo" className="space-y-4 mt-4">
+          {/* Textos */}
           <div className="bg-card border border-border rounded-xl p-5 space-y-4">
+            <p className="text-sm font-semibold text-slate-800">Textos da página</p>
             <div className="space-y-1.5">
-              <Label className="text-sm font-medium text-slate-700">Ordenação padrão dos veículos</Label>
-              <p className="text-xs text-muted-foreground">Como os carros são exibidos por padrão na vitrine</p>
-              <Select value={settings.sort_by} onValueChange={v => set('sort_by', v as StorefrontSettings['sort_by'])}>
-                <SelectTrigger className="h-10 mt-2">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="featured">Destaques primeiro</SelectItem>
-                  <SelectItem value="created_at_desc">Mais recentes primeiro</SelectItem>
-                  <SelectItem value="price_asc">Menor preço primeiro</SelectItem>
-                  <SelectItem value="price_desc">Maior preço primeiro</SelectItem>
-                </SelectContent>
-              </Select>
+              <Label className="text-sm font-medium text-slate-700">Título da página</Label>
+              <Input value={settings.page_title} onChange={e => set('page_title', e.target.value)} placeholder="Ex: Encontre seu próximo carro" className="h-10" />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-sm font-medium text-slate-700">Slogan / subtítulo</Label>
+              <Input value={settings.page_slogan} onChange={e => set('page_slogan', e.target.value)} placeholder="Ex: Os melhores veículos seminovos da região" className="h-10" />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-sm font-medium text-slate-700">Texto do botão principal</Label>
+              <Input value={settings.cta_label} onChange={e => set('cta_label', e.target.value)} placeholder="Ver detalhes" className="h-10" />
             </div>
           </div>
+
+          {/* Banner */}
+          <div className="bg-card border border-border rounded-xl p-5 space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-semibold text-slate-800">Banner</p>
+                <p className="text-xs text-muted-foreground mt-0.5">Bloco de destaque acima dos carros</p>
+              </div>
+              <Switch checked={settings.banner_enabled} onCheckedChange={v => set('banner_enabled', v)} />
+            </div>
+            {settings.banner_enabled && (
+              <>
+                <div className="space-y-1.5">
+                  <Label className="text-sm font-medium text-slate-700">Título do banner</Label>
+                  <Input value={settings.banner_title} onChange={e => set('banner_title', e.target.value)} placeholder="Ex: Novidades da semana" className="h-10" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-sm font-medium text-slate-700">Subtítulo do banner</Label>
+                  <Input value={settings.banner_subtitle} onChange={e => set('banner_subtitle', e.target.value)} placeholder="Ex: Confira os veículos em destaque" className="h-10" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-sm font-medium text-slate-700">URL da imagem de fundo</Label>
+                  <Input value={settings.banner_image_url} onChange={e => set('banner_image_url', e.target.value)} placeholder="https://..." className="h-10" />
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* Sobre */}
+          <div className="bg-card border border-border rounded-xl p-5 space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-semibold text-slate-800">Sobre a loja</p>
+                <p className="text-xs text-muted-foreground mt-0.5">Seção com descrição e foto da loja</p>
+              </div>
+              <Switch checked={settings.about_enabled} onCheckedChange={v => set('about_enabled', v)} />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-sm font-medium text-slate-700">Descrição da loja</Label>
+              <Textarea value={storeData.description} onChange={e => setStore('description', e.target.value)} placeholder="Conte um pouco sobre sua loja, diferenciais, tempo de mercado..." rows={4} className="resize-none" />
+              <p className="text-xs text-muted-foreground">Aparece na seção "Sobre" da vitrine e é usada pelo agente de IA.</p>
+            </div>
+            {settings.about_enabled && (
+              <div className="space-y-1.5">
+                <Label className="text-sm font-medium text-slate-700">URL da foto da loja</Label>
+                <Input value={settings.about_image_url} onChange={e => set('about_image_url', e.target.value)} placeholder="https://..." className="h-10" />
+              </div>
+            )}
+          </div>
+
+          <SaveBtn onClick={saveAbout} label="Salvar conteúdo" />
         </TabsContent>
 
-        {/* 3. FILTROS */}
-        <TabsContent value="filters" className="space-y-4 mt-4">
+        {/* ── CATÁLOGO ───────────────────────────────────────────────────── */}
+        <TabsContent value="catalogo" className="space-y-4 mt-4">
+          {/* Ordenação */}
           <div className="bg-card border border-border rounded-xl p-5 space-y-4">
-            <p className="text-sm text-muted-foreground">Escolha quais filtros aparecem na vitrine para os visitantes</p>
+            <p className="text-sm font-semibold text-slate-800">Ordenação padrão</p>
+            <Select value={settings.sort_by} onValueChange={v => set('sort_by', v as StorefrontSettings['sort_by'])}>
+              <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="featured">Destaques primeiro</SelectItem>
+                <SelectItem value="created_at_desc">Mais recentes primeiro</SelectItem>
+                <SelectItem value="price_asc">Menor preço primeiro</SelectItem>
+                <SelectItem value="price_desc">Maior preço primeiro</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Filtros */}
+          <div className="bg-card border border-border rounded-xl p-5 space-y-4">
+            <p className="text-sm font-semibold text-slate-800">Filtros visíveis</p>
+            <p className="text-xs text-muted-foreground -mt-2">Escolha quais filtros aparecem para os visitantes</p>
             {([
               ['filter_brand',        'Filtro por Marca'],
               ['filter_price',        'Filtro por Faixa de Preço'],
@@ -348,138 +481,15 @@ export function StorefrontSettingsContent({ slug, initialSettings }: Props) {
             ] as const).map(([key, label]) => (
               <div key={key} className="flex items-center justify-between py-1">
                 <Label className="text-sm text-slate-700 cursor-pointer">{label}</Label>
-                <Switch
-                  checked={settings[key]}
-                  onCheckedChange={v => set(key, v)}
-                />
+                <Switch checked={settings[key]} onCheckedChange={v => set(key, v)} />
               </div>
             ))}
           </div>
-        </TabsContent>
 
-        {/* 4. TEXTOS */}
-        <TabsContent value="texts" className="space-y-4 mt-4">
+          {/* Cards */}
           <div className="bg-card border border-border rounded-xl p-5 space-y-4">
-            <div className="space-y-1.5">
-              <Label className="text-sm font-medium text-slate-700">Título da página</Label>
-              <Input
-                value={settings.page_title}
-                onChange={e => set('page_title', e.target.value)}
-                placeholder="Ex: Encontre seu próximo carro"
-                className="h-10"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-sm font-medium text-slate-700">Slogan / subtítulo</Label>
-              <Input
-                value={settings.page_slogan}
-                onChange={e => set('page_slogan', e.target.value)}
-                placeholder="Ex: Os melhores veículos seminovos da região"
-                className="h-10"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-sm font-medium text-slate-700">Texto do botão principal</Label>
-              <Input
-                value={settings.cta_label}
-                onChange={e => set('cta_label', e.target.value)}
-                placeholder="Ver detalhes"
-                className="h-10"
-              />
-            </div>
-          </div>
-        </TabsContent>
-
-        {/* 5. BANNER */}
-        <TabsContent value="banner" className="space-y-4 mt-4">
-          <div className="bg-card border border-border rounded-xl p-5 space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <Label className="text-sm font-medium text-slate-700">Exibir banner no topo</Label>
-                <p className="text-xs text-muted-foreground mt-0.5">Bloco de destaque acima dos carros</p>
-              </div>
-              <Switch
-                checked={settings.banner_enabled}
-                onCheckedChange={v => set('banner_enabled', v)}
-              />
-            </div>
-            {settings.banner_enabled && (
-              <>
-                <div className="space-y-1.5">
-                  <Label className="text-sm font-medium text-slate-700">Título do banner</Label>
-                  <Input
-                    value={settings.banner_title}
-                    onChange={e => set('banner_title', e.target.value)}
-                    placeholder="Ex: Novidades da semana"
-                    className="h-10"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-sm font-medium text-slate-700">Subtítulo do banner</Label>
-                  <Input
-                    value={settings.banner_subtitle}
-                    onChange={e => set('banner_subtitle', e.target.value)}
-                    placeholder="Ex: Confira os veículos em destaque"
-                    className="h-10"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-sm font-medium text-slate-700">URL da imagem de fundo</Label>
-                  <Input
-                    value={settings.banner_image_url}
-                    onChange={e => set('banner_image_url', e.target.value)}
-                    placeholder="https://..."
-                    className="h-10"
-                  />
-                </div>
-              </>
-            )}
-          </div>
-        </TabsContent>
-
-        {/* 6. SOBRE A LOJA */}
-        <TabsContent value="about" className="space-y-4 mt-4">
-          <div className="bg-card border border-border rounded-xl p-5 space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <Label className="text-sm font-medium text-slate-700">Exibir seção "Sobre a loja"</Label>
-                <p className="text-xs text-muted-foreground mt-0.5">Bloco com texto livre e foto da loja</p>
-              </div>
-              <Switch
-                checked={settings.about_enabled}
-                onCheckedChange={v => set('about_enabled', v)}
-              />
-            </div>
-            {settings.about_enabled && (
-              <>
-                <div className="space-y-1.5">
-                  <Label className="text-sm font-medium text-slate-700">Texto sobre a loja</Label>
-                  <Textarea
-                    value={settings.about_text}
-                    onChange={e => set('about_text', e.target.value)}
-                    placeholder="Conte um pouco sobre sua loja, diferenciais, tempo de mercado..."
-                    rows={4}
-                    className="resize-none"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-sm font-medium text-slate-700">URL da foto da loja</Label>
-                  <Input
-                    value={settings.about_image_url}
-                    onChange={e => set('about_image_url', e.target.value)}
-                    placeholder="https://..."
-                    className="h-10"
-                  />
-                </div>
-              </>
-            )}
-          </div>
-        </TabsContent>
-
-        {/* 7. SPECS NOS CARDS */}
-        <TabsContent value="specs" className="space-y-4 mt-4">
-          <div className="bg-card border border-border rounded-xl p-5 space-y-4">
-            <p className="text-sm text-muted-foreground">Escolha quais informações aparecem nas miniaturas dos carros</p>
+            <p className="text-sm font-semibold text-slate-800">Informações nos cards</p>
+            <p className="text-xs text-muted-foreground -mt-2">O que aparece nas miniaturas dos veículos</p>
             {([
               ['show_year',         'Ano do modelo'],
               ['show_mileage',      'Quilometragem'],
@@ -488,48 +498,61 @@ export function StorefrontSettingsContent({ slug, initialSettings }: Props) {
             ] as const).map(([key, label]) => (
               <div key={key} className="flex items-center justify-between py-1">
                 <Label className="text-sm text-slate-700 cursor-pointer">{label}</Label>
-                <Switch
-                  checked={settings[key]}
-                  onCheckedChange={v => set(key, v)}
-                />
+                <Switch checked={settings[key]} onCheckedChange={v => set(key, v)} />
               </div>
             ))}
+          </div>
 
-            <div className="border-t border-border pt-4">
-              <p className="text-sm text-muted-foreground mb-3">Funcionalidades na página do veículo</p>
-              <div className="flex items-center justify-between py-1">
-                <div>
-                  <Label className="text-sm text-slate-700 cursor-pointer">Simulador de financiamento</Label>
-                  <p className="text-xs text-muted-foreground mt-0.5">Exibe simulador de parcelas na página de cada carro</p>
-                </div>
-                <Switch
-                  checked={settings.financing_simulator}
-                  onCheckedChange={v => set('financing_simulator', v)}
-                />
+          {/* Botões */}
+          <div className="bg-card border border-border rounded-xl p-5 space-y-5">
+            <p className="text-sm font-semibold text-slate-800">Estilo dos botões</p>
+            <div className="space-y-3">
+              <Label className="text-sm font-medium text-slate-700">Botão "Ver detalhes"</Label>
+              <Input value={settings.btn_details_label} onChange={e => set('btn_details_label', e.target.value)} placeholder="Ver detalhes" className="h-10" />
+              <div className="flex gap-3">
+                {([['filled', 'Preenchido'], ['outline', 'Contorno']] as const).map(([val, label]) => (
+                  <button key={val} onClick={() => set('btn_details_style', val)} className={`flex-1 py-2.5 rounded-lg border-2 text-sm font-medium transition-colors ${settings.btn_details_style === val ? 'border-blue-600 bg-blue-50 text-blue-700' : 'border-border text-muted-foreground hover:border-slate-300'}`}>{label}</button>
+                ))}
               </div>
             </div>
+            <div className="space-y-3">
+              <Label className="text-sm font-medium text-slate-700">Botão "WhatsApp"</Label>
+              <div className="flex gap-3">
+                {([['filled', 'Preenchido (verde)'], ['outline', 'Contorno']] as const).map(([val, label]) => (
+                  <button key={val} onClick={() => set('btn_whatsapp_style', val)} className={`flex-1 py-2.5 rounded-lg border-2 text-sm font-medium transition-colors ${settings.btn_whatsapp_style === val ? 'border-blue-600 bg-blue-50 text-blue-700' : 'border-border text-muted-foreground hover:border-slate-300'}`}>{label}</button>
+                ))}
+              </div>
+            </div>
+            <div className="flex items-center justify-between py-1 border-t border-border pt-4">
+              <div>
+                <Label className="text-sm text-slate-700 cursor-pointer">Simulador de financiamento</Label>
+                <p className="text-xs text-muted-foreground mt-0.5">Exibe simulador de parcelas na página de cada carro</p>
+              </div>
+              <Switch checked={settings.financing_simulator} onCheckedChange={v => set('financing_simulator', v)} />
+            </div>
           </div>
+
+          <SaveBtn onClick={saveStorefront} label="Salvar catálogo" />
         </TabsContent>
 
-        {/* 10. CONTATO */}
-        <TabsContent value="contact" className="space-y-4 mt-4">
+        {/* ── CONTATO ────────────────────────────────────────────────────── */}
+        <TabsContent value="contato" className="space-y-4 mt-4">
           <div className="bg-card border border-border rounded-xl p-5 space-y-5">
-            <div>
-              <p className="text-sm font-medium text-slate-700 mb-1">Endereço completo</p>
-              <p className="text-xs text-muted-foreground mb-2">Aparece no rodapé da vitrine</p>
+            <div className="space-y-1.5">
+              <p className="text-sm font-semibold text-slate-800 mb-3">Endereço</p>
               <Textarea
-                value={settings.store_address}
-                onChange={e => set('store_address', e.target.value)}
+                value={storeData.address}
+                onChange={e => setStore('address', e.target.value)}
                 placeholder="Ex: Av. Paulista, 1234 — Bela Vista, São Paulo - SP, 01310-100"
                 rows={2}
                 className="resize-none"
               />
+              <p className="text-xs text-muted-foreground">Aparece no rodapé da vitrine</p>
             </div>
 
             <div className="border-t border-border pt-4 space-y-3">
-              <p className="text-sm font-medium text-slate-700">Redes sociais</p>
-              <p className="text-xs text-muted-foreground -mt-1">Cole o link completo do perfil. Deixe em branco para não exibir.</p>
-
+              <p className="text-sm font-semibold text-slate-800">Redes sociais</p>
+              <p className="text-xs text-muted-foreground -mt-1">Cole o link completo. Deixe em branco para não exibir.</p>
               {([
                 ['instagram_url', 'Instagram', 'https://instagram.com/suapagina'],
                 ['facebook_url',  'Facebook',  'https://facebook.com/suapagina'],
@@ -548,71 +571,9 @@ export function StorefrontSettingsContent({ slug, initialSettings }: Props) {
               ))}
             </div>
           </div>
-        </TabsContent>
-
-        {/* 8. BOTÕES */}
-        <TabsContent value="buttons" className="space-y-4 mt-4">
-          <div className="bg-card border border-border rounded-xl p-5 space-y-6">
-            <div className="space-y-3">
-              <Label className="text-sm font-medium text-slate-700">Botão "Ver detalhes"</Label>
-              <div className="space-y-2">
-                <Input
-                  value={settings.btn_details_label}
-                  onChange={e => set('btn_details_label', e.target.value)}
-                  placeholder="Ver detalhes"
-                  className="h-10"
-                />
-                <div className="flex gap-3">
-                  {([['filled', 'Preenchido'], ['outline', 'Contorno']] as const).map(([val, label]) => (
-                    <button
-                      key={val}
-                      onClick={() => set('btn_details_style', val)}
-                      className={`flex-1 py-2.5 rounded-lg border-2 text-sm font-medium transition-colors ${
-                        settings.btn_details_style === val
-                          ? 'border-blue-600 bg-blue-50 text-blue-700'
-                          : 'border-border text-muted-foreground hover:border-slate-300'
-                      }`}
-                    >
-                      {label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            <div className="space-y-3">
-              <Label className="text-sm font-medium text-slate-700">Botão "WhatsApp"</Label>
-              <div className="flex gap-3">
-                {([['filled', 'Preenchido (verde)'], ['outline', 'Contorno']] as const).map(([val, label]) => (
-                  <button
-                    key={val}
-                    onClick={() => set('btn_whatsapp_style', val)}
-                    className={`flex-1 py-2.5 rounded-lg border-2 text-sm font-medium transition-colors ${
-                      settings.btn_whatsapp_style === val
-                        ? 'border-blue-600 bg-blue-50 text-blue-700'
-                        : 'border-border text-muted-foreground hover:border-slate-300'
-                    }`}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
+          <SaveBtn onClick={saveContato} label="Salvar contato" />
         </TabsContent>
       </Tabs>
-
-      {/* Save button */}
-      <div className="flex justify-end pt-2">
-        <Button
-          onClick={save}
-          disabled={saving}
-          className="h-9 px-6 text-sm text-white"
-          style={{ background: 'var(--ds-primary-600)' }}
-        >
-          {saving ? <><Loader2 size={14} className="animate-spin mr-2" />Salvando...</> : 'Salvar configurações'}
-        </Button>
-      </div>
     </div>
   )
 }

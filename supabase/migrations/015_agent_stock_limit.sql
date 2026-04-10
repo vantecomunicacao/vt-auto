@@ -1,0 +1,2 @@
+ALTER TABLE public.stores
+  ADD COLUMN IF NOT EXISTS agent_stock_limit INTEGER NOT NULL DEFAULT 20;

@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
   LayoutDashboard, Car, Users, UserCheck,
-  Settings, Bot, Plug, LogOut, Store,
+  Settings, Bot, Plug, LogOut, Store, ScrollText, BookMarked, MessagesSquare,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
@@ -17,17 +17,20 @@ interface NavItem {
 }
 
 const NAV_MAIN: NavItem[] = [
-  { label: 'Dashboard',  href: '/admin/dashboard',     icon: LayoutDashboard },
-  { label: 'Veículos',   href: '/admin/vehicles',      icon: Car },
-  { label: 'Leads',      href: '/admin/leads',         icon: Users },
-  { label: 'Equipe',     href: '/admin/team',          icon: UserCheck },
+  { label: 'Dashboard',    href: '/admin/dashboard',       icon: LayoutDashboard },
+  { label: 'Veículos',    href: '/admin/vehicles',        icon: Car },
+  { label: 'Leads',       href: '/admin/leads',           icon: Users },
+  { label: 'Conversas',   href: '/admin/conversations',   icon: MessagesSquare },
+  { label: 'Equipe',      href: '/admin/team',            icon: UserCheck },
 ]
 
 const NAV_CONFIG: NavItem[] = [
   { label: 'Vitrine',        href: '/admin/storefront',   icon: Store },
   { label: 'Configurações',  href: '/admin/settings',     icon: Settings },
   { label: 'Agente de IA',   href: '/admin/agent',        icon: Bot },
+  { label: 'Logs do Agente', href: '/admin/logs',         icon: ScrollText },
   { label: 'Integrações',    href: '/admin/integrations', icon: Plug },
+  { label: 'Documentação',   href: '/admin/docs',         icon: BookMarked },
 ]
 
 interface SidebarProps {
@@ -36,6 +39,7 @@ interface SidebarProps {
   userName: string
   userRole: string
   userInitials: string
+  isMaster?: boolean
   newLeadsCount?: number
 }
 
@@ -45,6 +49,7 @@ export function Sidebar({
   userName,
   userRole,
   userInitials,
+  isMaster = false,
   newLeadsCount = 0,
 }: SidebarProps) {
   const pathname = usePathname()
@@ -122,7 +127,7 @@ export function Sidebar({
         <p className="text-[10px] text-slate-600 uppercase tracking-[0.06em] px-2 pt-4 pb-1.5">
           Configurações
         </p>
-        {NAV_CONFIG.map(item => {
+        {NAV_CONFIG.filter(item => item.href !== '/admin/logs' || isMaster).map(item => {
           const active = isActive(item.href)
           const Icon = item.icon
           return (

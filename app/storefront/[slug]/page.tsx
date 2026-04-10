@@ -8,6 +8,7 @@ import { StorefrontVTLX } from './StorefrontVTLX'
 import { StorefrontVTClass } from './StorefrontVTClass'
 import { BackToTop } from './BackToTop'
 import { WhatsAppFAB } from './WhatsAppFAB'
+import { formatPhone } from '@/lib/formatPhone'
 
 const fuelLabel: Record<string, string> = {
   flex: 'Flex',
@@ -93,7 +94,6 @@ export default async function StorefrontPage({
     banner_subtitle: '',
     banner_image_url: '',
     about_enabled: false,
-    about_text: '',
     about_image_url: '',
     show_mileage: true,
     show_year: true,
@@ -107,9 +107,11 @@ export default async function StorefrontPage({
     facebook_url: '',
     tiktok_url: '',
     youtube_url: '',
-    store_address: '',
     ...(store.storefront_settings ?? {}),
   }
+  // Campos que migraram para colunas diretas da tabela stores
+  const aboutText: string = store.description ?? ''
+  const storeAddress: string = store.address ?? ''
 
   // Ordenação dinâmica
   const orderMap: Record<string, { col: string; asc: boolean }[]> = {
@@ -136,6 +138,7 @@ export default async function StorefrontPage({
   const whatsappPhone = store.phone?.replace(/\D/g, '') ?? ''
   const primaryColor = store.primary_color ?? '#1e40af'
   const secondaryColor = store.secondary_color ?? '#1e40af'
+  const landline: string = store.landline ?? ''
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: sf.layout_theme === 'vtclass' ? '#DDDDDD' : '#F9FAFB' }}>
@@ -252,7 +255,7 @@ export default async function StorefrontPage({
         )}
 
         {/* Sobre a loja */}
-        {sf.about_enabled && sf.about_text && (
+        {sf.about_enabled && aboutText && (
           <div className="mt-12 bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
             <div className={`${sf.about_image_url ? 'md:grid md:grid-cols-2' : ''}`}>
               {sf.about_image_url && (
@@ -260,7 +263,7 @@ export default async function StorefrontPage({
               )}
               <div className="p-8 flex flex-col justify-center">
                 <h2 className="text-xl font-bold text-gray-900 mb-3">Sobre {store.name}</h2>
-                <p className="text-gray-600 leading-relaxed whitespace-pre-line">{sf.about_text}</p>
+                <p className="text-gray-600 leading-relaxed whitespace-pre-line">{aboutText}</p>
               </div>
             </div>
           </div>
@@ -277,34 +280,62 @@ export default async function StorefrontPage({
           {/* Top row: info + social */}
           <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-6">
             {/* Store info */}
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
+            <div className="space-y-4">
+              {/* Nome + logo */}
+              <div className="flex items-center gap-2.5">
                 {store.logo_url && (
-                  <img src={store.logo_url} alt="" className="h-7 w-7 rounded-full object-cover" />
+                  <img src={store.logo_url} alt="" className="h-8 w-8 rounded-lg object-cover" />
                 )}
-                <span className="font-bold text-gray-900 text-sm">{store.name}</span>
+                <span className="font-bold text-gray-900 text-base">{store.name}</span>
               </div>
-              {whatsappPhone && (
-                <a
-                  href={`https://wa.me/55${whatsappPhone}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 text-green-600 hover:text-green-700 text-sm font-medium transition-colors"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
-                    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z" />
-                    <path d="M12 0C5.373 0 0 5.373 0 12c0 2.123.554 4.117 1.528 5.847L.057 23.852a.5.5 0 0 0 .625.607l6.219-1.63A11.95 11.95 0 0 0 12 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22a10 10 0 0 1-5.194-1.449l-.39-.23-3.688.968.987-3.594-.243-.38A10 10 0 1 1 12 22z" />
-                  </svg>
-                  {store.phone}
-                </a>
-              )}
-              {sf.store_address && (
-                <p className="text-xs text-gray-500 flex items-start gap-1.5 max-w-xs">
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-3.5 h-3.5 mt-0.5 flex-shrink-0 text-gray-400">
+
+              {/* Contatos */}
+              <div className="flex flex-col gap-2">
+                {whatsappPhone && (
+                  <a
+                    href={`https://wa.me/55${whatsappPhone}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 self-start bg-green-500 hover:bg-green-600 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4 flex-shrink-0">
+                      <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z" />
+                      <path d="M12 0C5.373 0 0 5.373 0 12c0 2.123.554 4.117 1.528 5.847L.057 23.852a.5.5 0 0 0 .625.607l6.219-1.63A11.95 11.95 0 0 0 12 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22a10 10 0 0 1-5.194-1.449l-.39-.23-3.688.968.987-3.594-.243-.38A10 10 0 1 1 12 22z" />
+                    </svg>
+                    WhatsApp {formatPhone(store.phone)}
+                  </a>
+                )}
+                {landline && (
+                  <a
+                    href={`tel:${landline.replace(/\D/g, '')}`}
+                    className="inline-flex items-center gap-2 self-start text-gray-600 hover:text-gray-900 text-sm font-medium px-4 py-2 rounded-lg border border-gray-200 hover:border-gray-300 bg-white hover:bg-gray-50 transition-colors"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4 flex-shrink-0 text-gray-400">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 0 0 2.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-.282.376-.769.542-1.21.38a12.035 12.035 0 0 1-7.143-7.143c-.162-.441.004-.928.38-1.21l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 0 0-1.091-.852H4.5A2.25 2.25 0 0 0 2.25 4.5v2.25Z" />
+                    </svg>
+                    Telefone {formatPhone(landline)}
+                  </a>
+                )}
+                {store.email && (
+                  <a
+                    href={`mailto:${store.email}`}
+                    className="inline-flex items-center gap-2 self-start text-gray-600 hover:text-gray-900 text-sm font-medium px-4 py-2 rounded-lg border border-gray-200 hover:border-gray-300 bg-white hover:bg-gray-50 transition-colors"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4 flex-shrink-0 text-gray-400">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25m19.5 0v.243a2.25 2.25 0 0 1-1.07 1.916l-7.5 4.615a2.25 2.25 0 0 1-2.36 0L3.32 8.91a2.25 2.25 0 0 1-1.07-1.916V6.75" />
+                    </svg>
+                    {store.email}
+                  </a>
+                )}
+              </div>
+
+              {storeAddress && (
+                <p className="text-xs text-gray-400 flex items-start gap-1.5 max-w-xs">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-3.5 h-3.5 mt-0.5 flex-shrink-0">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
                     <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" />
                   </svg>
-                  {sf.store_address}
+                  {storeAddress}
                 </p>
               )}
             </div>

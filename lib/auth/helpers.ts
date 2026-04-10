@@ -26,11 +26,6 @@ export async function requireAuth() {
  */
 export async function requireRole(role: 'owner' | 'seller') {
   const user = await requireAuth()
-  const jwt = user.app_metadata
-  const userRole = (user as any).app_metadata?.role ||
-    // fallback para custom claim no JWT
-    null
-
   // O role vem do JWT claim customizado (via Auth Hook)
   // Verificamos via getSession que retorna o JWT completo
   const supabase = await createClient()
@@ -39,9 +34,12 @@ export async function requireRole(role: 'owner' | 'seller') {
   if (!session) redirect('/login')
 
   // Decodifica o payload do JWT (sem verificação de assinatura — apenas para leitura)
-  const payload = JSON.parse(
-    Buffer.from(session.access_token.split('.')[1], 'base64url').toString()
-  )
+  let payload: Record<string, unknown>
+  try {
+    payload = JSON.parse(Buffer.from(session.access_token.split('.')[1], 'base64url').toString())
+  } catch {
+    redirect('/login')
+  }
 
   if (payload.role !== role) {
     redirect('/dashboard')
@@ -62,9 +60,12 @@ export async function requireMaster() {
 
   if (!session) redirect('/login')
 
-  const payload = JSON.parse(
-    Buffer.from(session.access_token.split('.')[1], 'base64url').toString()
-  )
+  let payload: Record<string, unknown>
+  try {
+    payload = JSON.parse(Buffer.from(session.access_token.split('.')[1], 'base64url').toString())
+  } catch {
+    redirect('/login')
+  }
 
   if (!payload.is_master) {
     redirect('/')
@@ -82,9 +83,12 @@ export async function getStoreId(): Promise<string | null> {
 
   if (!session) return null
 
-  const payload = JSON.parse(
-    Buffer.from(session.access_token.split('.')[1], 'base64url').toString()
-  )
+  let payload: Record<string, unknown>
+  try {
+    payload = JSON.parse(Buffer.from(session.access_token.split('.')[1], 'base64url').toString())
+  } catch {
+    return null
+  }
 
-  return payload.store_id || null
+  return (payload.store_id as string) || null
 }

@@ -2,6 +2,8 @@ import Link from 'next/link'
 import GalleryClient from './GalleryClient'
 import { FinancingSimulator } from './FinancingSimulator'
 import { VehicleSidebarVTClass } from './VehicleSidebarVTClass'
+import { StorefrontFooter } from '../../StorefrontFooter'
+import { VehicleMobileBar } from './VehicleMobileBar'
 
 const fuelLabel: Record<string, string> = {
   flex: 'Flex', gasoline: 'Gasolina', diesel: 'Diesel',
@@ -73,10 +75,19 @@ interface Props {
     slug: string
     logo_url?: string | null
     phone?: string | null
+    landline?: string | null
+    email?: string | null
+    address?: string | null
     city?: string | null
     state?: string | null
     primary_color?: string | null
     secondary_color?: string | null
+  }
+  sf?: {
+    instagram_url?: string
+    facebook_url?: string
+    tiktok_url?: string
+    youtube_url?: string
   }
   vehicle: {
     id: string
@@ -110,7 +121,7 @@ interface Props {
 
 export function VehicleDetailVTClass({
   store, vehicle, allImages, primaryColor, secondaryColor,
-  whatsappPhone, waLink, slug, showFinancingSimulator, storeSlug,
+  whatsappPhone, waLink, slug, showFinancingSimulator, storeSlug, sf = {},
 }: Props) {
   const specItems: { icon: React.ReactNode; label: string; value: string }[] = []
   if (vehicle.fuel) specItems.push({ icon: <IconFuel />, label: 'Combustível', value: fuelLabel[vehicle.fuel] ?? vehicle.fuel })
@@ -184,11 +195,11 @@ export function VehicleDetailVTClass({
           {specItems.length > 0 && (
             <div className="bg-white p-4">
               <p className="text-sm font-semibold text-gray-700 mb-3 text-center border-b border-gray-100 pb-2">Resumo</p>
-              <div className="space-y-4">
+              <div className="grid grid-cols-3 gap-x-2 gap-y-4 lg:flex lg:flex-col lg:gap-4">
                 {specItems.map(spec => (
                   <div key={spec.label} className="flex flex-col items-center text-center gap-1">
                     <span style={{ color: primaryColor }}>{spec.icon}</span>
-                    <span className="text-xs font-bold text-gray-700 uppercase tracking-wide">{spec.value}</span>
+                    <span className="text-xs font-bold text-gray-700 uppercase tracking-wide leading-tight">{spec.value}</span>
                   </div>
                 ))}
               </div>
@@ -196,7 +207,7 @@ export function VehicleDetailVTClass({
           )}
 
           {/* Actions */}
-          <div className="space-y-2">
+          <div id="vehicle-sidebar" className="space-y-2">
             <VehicleSidebarVTClass
               price={vehicle.price ?? null}
               priceOld={vehicle.price_old ?? null}
@@ -207,6 +218,7 @@ export function VehicleDetailVTClass({
               storeCity={store.city ?? null}
               storeState={store.state ?? null}
               storePhone={store.phone ?? null}
+              storeLandline={store.landline ?? null}
               primaryColor={primaryColor}
               secondaryColor={secondaryColor}
               vehicleName={`${vehicle.year_model ? vehicle.year_model + ' ' : ''}${vehicle.brand} ${vehicle.model}${vehicle.version ? ' ' + vehicle.version : ''}`}
@@ -244,17 +256,13 @@ export function VehicleDetailVTClass({
         </div>
       </main>
 
-      {/* Footer — igual ao da vitrine */}
-      <footer className="mt-8 border-t border-gray-300 bg-white">
-        <div className="max-w-6xl mx-auto px-4 py-4 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-gray-500">
-          <span>&copy; {new Date().getFullYear()} {store.name}. Todos os direitos reservados.</span>
-          <a href="https://vtauto.com.br" target="_blank" rel="noopener noreferrer"
-            className="flex items-center gap-1.5 opacity-50 hover:opacity-80 transition-opacity">
-            <span>Desenvolvido por</span>
-            <img src="/vt-auto-logo.svg" alt="VT Auto" className="h-4 w-auto" />
-          </a>
-        </div>
-      </footer>
+      <StorefrontFooter store={store} whatsappPhone={whatsappPhone} sf={sf} />
+      <VehicleMobileBar
+        waLink={whatsappPhone ? waLink : null}
+        price={vehicle.price ?? null}
+        primaryColor={primaryColor}
+        sidebarId="vehicle-sidebar"
+      />
     </div>
   )
 }

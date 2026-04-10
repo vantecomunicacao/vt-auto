@@ -1,0 +1,2 @@
+ALTER TABLE public.stores
+  ADD COLUMN IF NOT EXISTS agent_max_message_chars INTEGER NOT NULL DEFAULT 300;

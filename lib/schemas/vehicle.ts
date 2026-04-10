@@ -1,13 +1,21 @@
 import { z } from 'zod'
 
+const currentYear = new Date().getFullYear()
+
 export const vehicleSchema = z.object({
   // Geral
-  brand:       z.string().min(1, 'Marca obrigatória'),
-  model:       z.string().min(1, 'Modelo obrigatório'),
+  brand:       z.string().min(1, 'Informe a marca do veículo'),
+  model:       z.string().min(1, 'Informe o modelo do veículo'),
   version:     z.string().optional(),
-  year_model:  z.coerce.number().int().min(1950).max(new Date().getFullYear() + 2),
-  year_manuf:  z.coerce.number().int().min(1950).max(new Date().getFullYear() + 2),
-  color:       z.string().min(1, 'Cor obrigatória'),
+  year_model:  z.coerce.number('Informe o ano do modelo')
+    .int('Ano deve ser um número inteiro')
+    .min(1950, 'Ano inválido — mínimo 1950')
+    .max(currentYear + 2, `Ano inválido — máximo ${currentYear + 2}`),
+  year_manuf:  z.coerce.number('Informe o ano de fabricação')
+    .int('Ano deve ser um número inteiro')
+    .min(1950, 'Ano inválido — mínimo 1950')
+    .max(currentYear + 2, `Ano inválido — máximo ${currentYear + 2}`),
+  color:       z.string().min(1, 'Informe a cor do veículo'),
   body_type:   z.enum(['sedan','hatch','suv','pickup','van','convertible','coupe','station_wagon','minivan','motorcycle','truck','other']).optional(),
   doors:       z.coerce.number().optional(),
   seats:       z.coerce.number().optional(),
@@ -16,16 +24,20 @@ export const vehicleSchema = z.object({
   featured:    z.boolean().default(false),
 
   // Técnico
-  fuel:         z.enum(['flex','gasoline','diesel','electric','hybrid','gas']),
-  transmission: z.enum(['manual','automatic','automated','cvt']),
-  mileage:      z.coerce.number().int().min(0).default(0),
+  fuel:         z.enum(['flex','gasoline','diesel','electric','hybrid','gas'], 'Selecione o tipo de combustível'),
+  transmission: z.enum(['manual','automatic','automated','cvt'], 'Selecione o tipo de câmbio'),
+  mileage: z.coerce.number('Informe a quilometragem')
+    .int()
+    .min(0, 'Quilometragem não pode ser negativa')
+    .default(0),
   engine:       z.string().optional(),
   power:        z.string().optional(),
   torque:       z.string().optional(),
   internal_notes: z.string().optional(),
 
   // Preço
-  price:            z.coerce.number().positive('Preço obrigatório'),
+  price: z.coerce.number('Informe o preço de venda')
+    .positive('O preço deve ser maior que zero'),
   price_old:        z.coerce.number().optional(),
   price_negotiable: z.boolean().default(true),
   fipe_code:        z.string().optional(),

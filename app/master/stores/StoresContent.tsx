@@ -1,7 +1,8 @@
 'use client'
 
 import { useState, useRef } from 'react'
-import { Search, ChevronDown } from 'lucide-react'
+import { Search, ChevronDown, Plus } from 'lucide-react'
+import { useRouter } from 'next/navigation'
 
 type Store = {
   id: string
@@ -35,13 +36,35 @@ function PlanBadge({ plan }: { plan: string }) {
   )
 }
 
+type NewAccountForm = {
+  store_name: string
+  plan: string
+  city: string
+  state: string
+  phone: string
+  email: string
+  owner_name: string
+  owner_email: string
+  owner_password: string
+}
+
+const emptyForm: NewAccountForm = {
+  store_name: '', plan: 'trial', city: '', state: '', phone: '', email: '',
+  owner_name: '', owner_email: '', owner_password: '',
+}
+
 export default function StoresContent({ stores }: { stores: Store[] }) {
+  const router = useRouter()
   const [search, setSearch] = useState('')
   const [storeList, setStoreList] = useState(stores)
   const [planLoading, setPlanLoading] = useState<string | null>(null)
   const [changingPlanStore, setChangingPlanStore] = useState<Store | null>(null)
   const [selectedPlan, setSelectedPlan] = useState('')
   const dialogRef = useRef<HTMLDialogElement>(null)
+  const newAccountDialogRef = useRef<HTMLDialogElement>(null)
+  const [newAccountForm, setNewAccountForm] = useState<NewAccountForm>(emptyForm)
+  const [newAccountLoading, setNewAccountLoading] = useState(false)
+  const [newAccountError, setNewAccountError] = useState('')
 
   const filtered = storeList.filter(
     (s) =>
@@ -92,10 +115,32 @@ export default function StoresContent({ stores }: { stores: Store[] }) {
     })
   }
 
+  async function handleNewAccount(e: React.FormEvent) {
+    e.preventDefault()
+    setNewAccountLoading(true)
+    setNewAccountError('')
+    try {
+      const res = await fetch('/api/master/stores', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newAccountForm),
+      })
+      const data = await res.json()
+      if (!res.ok) { setNewAccountError(data.error); return }
+      setStoreList((prev) => [data.store, ...prev])
+      newAccountDialogRef.current?.close()
+      setNewAccountForm(emptyForm)
+      router.refresh()
+    } finally {
+      setNewAccountLoading(false)
+    }
+  }
+
   return (
     <>
-      {/* Search */}
-      <div className="relative mb-5 max-w-sm">
+      {/* Toolbar */}
+      <div className="flex items-center gap-3 mb-5">
+        <div className="relative flex-1 max-w-sm">
         <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
         <input
           type="text"
@@ -104,6 +149,14 @@ export default function StoresContent({ stores }: { stores: Store[] }) {
           placeholder="Buscar por nome ou slug..."
           className="w-full pl-9 pr-3 h-9 border border-gray-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-slate-300"
         />
+        </div>
+        <button
+          onClick={() => { setNewAccountError(''); newAccountDialogRef.current?.showModal() }}
+          className="inline-flex items-center gap-1.5 h-9 px-4 bg-slate-800 text-white text-sm rounded-lg hover:bg-slate-700 transition-colors"
+        >
+          <Plus size={15} />
+          Nova conta
+        </button>
       </div>
 
       {/* Table */}
@@ -202,6 +255,145 @@ export default function StoresContent({ stores }: { stores: Store[] }) {
             </button>
           </div>
         </div>
+      </dialog>
+
+      {/* New account dialog */}
+      <dialog
+        ref={newAccountDialogRef}
+        className="rounded-xl border border-gray-200 shadow-xl p-0 w-full max-w-lg backdrop:bg-black/40"
+      >
+        <form onSubmit={handleNewAccount}>
+          <div className="p-5">
+            <h3 className="text-base font-semibold text-gray-900 mb-4">Nova conta</h3>
+
+            <div className="mb-4">
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Dados da loja</p>
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Nome da loja *</label>
+                  <input
+                    type="text"
+                    required
+                    value={newAccountForm.store_name}
+                    onChange={(e) => setNewAccountForm((f) => ({ ...f, store_name: e.target.value }))}
+                    className="w-full h-9 px-3 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-slate-300"
+                    placeholder="Ex: Carros Premium SP"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Plano</label>
+                    <select
+                      value={newAccountForm.plan}
+                      onChange={(e) => setNewAccountForm((f) => ({ ...f, plan: e.target.value }))}
+                      className="w-full h-9 px-3 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-slate-300 bg-white"
+                    >
+                      {plans.map((p) => (
+                        <option key={p} value={p}>{p.charAt(0).toUpperCase() + p.slice(1)}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Telefone</label>
+                    <input
+                      type="text"
+                      value={newAccountForm.phone}
+                      onChange={(e) => setNewAccountForm((f) => ({ ...f, phone: e.target.value }))}
+                      className="w-full h-9 px-3 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-slate-300"
+                      placeholder="(11) 99999-9999"
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Cidade</label>
+                    <input
+                      type="text"
+                      value={newAccountForm.city}
+                      onChange={(e) => setNewAccountForm((f) => ({ ...f, city: e.target.value }))}
+                      className="w-full h-9 px-3 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-slate-300"
+                      placeholder="São Paulo"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">UF</label>
+                    <input
+                      type="text"
+                      maxLength={2}
+                      value={newAccountForm.state}
+                      onChange={(e) => setNewAccountForm((f) => ({ ...f, state: e.target.value.toUpperCase() }))}
+                      className="w-full h-9 px-3 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-slate-300"
+                      placeholder="SP"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">ADM da conta</p>
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Nome completo *</label>
+                  <input
+                    type="text"
+                    required
+                    value={newAccountForm.owner_name}
+                    onChange={(e) => setNewAccountForm((f) => ({ ...f, owner_name: e.target.value }))}
+                    className="w-full h-9 px-3 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-slate-300"
+                    placeholder="Nome do responsável"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">E-mail *</label>
+                  <input
+                    type="email"
+                    required
+                    value={newAccountForm.owner_email}
+                    onChange={(e) => setNewAccountForm((f) => ({ ...f, owner_email: e.target.value }))}
+                    className="w-full h-9 px-3 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-slate-300"
+                    placeholder="adm@loja.com"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Senha *</label>
+                  <input
+                    type="password"
+                    required
+                    minLength={6}
+                    value={newAccountForm.owner_password}
+                    onChange={(e) => setNewAccountForm((f) => ({ ...f, owner_password: e.target.value }))}
+                    className="w-full h-9 px-3 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-slate-300"
+                    placeholder="Mínimo 6 caracteres"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {newAccountError && (
+              <p className="mt-3 text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+                {newAccountError}
+              </p>
+            )}
+
+            <div className="flex gap-2 mt-5">
+              <button
+                type="button"
+                onClick={() => newAccountDialogRef.current?.close()}
+                className="flex-1 h-9 text-sm border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                disabled={newAccountLoading}
+                className="flex-1 h-9 text-sm bg-slate-800 text-white rounded-lg hover:bg-slate-700 disabled:opacity-50 transition-colors"
+              >
+                {newAccountLoading ? 'Criando...' : 'Criar conta'}
+              </button>
+            </div>
+          </div>
+        </form>
       </dialog>
     </>
   )

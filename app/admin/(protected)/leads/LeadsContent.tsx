@@ -10,19 +10,28 @@ export type Lead = {
   phone: string | null
   email: string | null
   source: 'whatsapp' | 'vitrine' | 'manual' | string
-  status: 'new' | 'in_progress' | 'qualified' | 'converted' | 'lost' | string
+  status: 'new' | 'qualifying' | 'negotiating' | 'closing' | 'converted' | 'lost' | string
+  ai_active: boolean
+  ai_paused_reason: 'transbordo' | 'encerramento' | 'manual' | null
   vehicle_interest: string | null
+  budget: string | null
+  payment_method: string | null
+  trade_in: string | null
   created_at: string
   updated_at: string
   vehicles: Vehicle[] | null
 }
 
 const STATUS_OPTIONS = [
-  { value: 'new',         label: 'Novo',          className: 'bg-red-100 text-red-700' },
-  { value: 'in_progress', label: 'Em andamento',  className: 'bg-yellow-100 text-yellow-700' },
-  { value: 'qualified',   label: 'Qualificado',   className: 'bg-blue-100 text-blue-700' },
-  { value: 'converted',   label: 'Convertido',    className: 'bg-green-100 text-green-700' },
-  { value: 'lost',        label: 'Perdido',       className: 'bg-gray-100 text-gray-500' },
+  { value: 'new',         label: 'Novo',            className: 'bg-slate-100 text-slate-600' },
+  { value: 'qualifying',  label: 'Qualificando',    className: 'bg-yellow-100 text-yellow-700' },
+  { value: 'negotiating', label: 'Negociando',      className: 'bg-orange-100 text-orange-700' },
+  { value: 'closing',     label: 'Em fechamento',   className: 'bg-blue-100 text-blue-700' },
+  { value: 'converted',   label: 'Convertido',      className: 'bg-green-100 text-green-700' },
+  { value: 'lost',        label: 'Perdido',         className: 'bg-gray-100 text-gray-500' },
+  // legados — mantidos para compatibilidade
+  { value: 'in_progress', label: 'Em andamento',    className: 'bg-yellow-100 text-yellow-700' },
+  { value: 'qualified',   label: 'Qualificado',     className: 'bg-blue-100 text-blue-700' },
 ]
 
 const SOURCE_MAP: Record<string, { label: string; className: string }> = {
@@ -57,7 +66,26 @@ export default function LeadsContent({ leads }: { leads: Lead[] }) {
   const [localLeads, setLocalLeads] = useState<Lead[]>(leads)
   const [saving, setSaving] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
+  const [togglingAi, setTogglingAi] = useState<string | null>(null)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
   const dialogRef = useRef<HTMLDialogElement>(null)
+  const deleteDialogRef = useRef<HTMLDialogElement>(null)
+
+  async function handleToggleAi(lead: Lead) {
+    setTogglingAi(lead.id)
+    try {
+      const res = await fetch(`/api/leads/${lead.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ai_active: !lead.ai_active }),
+      })
+      if (res.ok) {
+        setLocalLeads(prev => prev.map(l => l.id === lead.id ? { ...l, ai_active: !lead.ai_active } : l))
+      }
+    } finally {
+      setTogglingAi(null)
+    }
+  }
 
   const filtered = localLeads.filter(lead => {
     const matchStatus = statusFilter === 'all' || lead.status === statusFilter
@@ -78,6 +106,30 @@ export default function LeadsContent({ leads }: { leads: Lead[] }) {
   function closeDialog() {
     dialogRef.current?.close()
     setUpdatingId(null)
+  }
+
+  function openDeleteDialog(lead: Lead) {
+    setDeletingId(lead.id)
+    deleteDialogRef.current?.showModal()
+  }
+
+  function closeDeleteDialog() {
+    deleteDialogRef.current?.close()
+    setDeletingId(null)
+  }
+
+  async function handleDeleteLead() {
+    if (!deletingId) return
+    setSaving(true)
+    try {
+      const res = await fetch(`/api/leads/${deletingId}`, { method: 'DELETE' })
+      if (res.ok) {
+        setLocalLeads(prev => prev.filter(l => l.id !== deletingId))
+        closeDeleteDialog()
+      }
+    } finally {
+      setSaving(false)
+    }
   }
 
   async function handleSaveStatus() {
@@ -147,6 +199,7 @@ export default function LeadsContent({ leads }: { leads: Lead[] }) {
                   <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">Interesse</th>
                   <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">Origem</th>
                   <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">Status</th>
+                  <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">Bot</th>
                   <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">Data</th>
                   <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">Ações</th>
                 </tr>
@@ -167,8 +220,13 @@ export default function LeadsContent({ leads }: { leads: Lead[] }) {
                       </td>
 
                       {/* Interesse */}
-                      <td className="px-4 py-3 text-foreground max-w-[200px] truncate">
-                        {getVehicleName(lead)}
+                      <td className="px-4 py-3 max-w-[220px]">
+                        <div className="font-medium text-foreground truncate">{getVehicleName(lead)}</div>
+                        <div className="flex flex-col gap-0.5 mt-0.5">
+                          {lead.budget && <span className="text-[10px] text-muted-foreground truncate">Orçamento: {lead.budget}</span>}
+                          {lead.payment_method && <span className="text-[10px] text-muted-foreground truncate">{lead.payment_method}</span>}
+                          {lead.trade_in && <span className="text-[10px] text-muted-foreground truncate">Troca: {lead.trade_in}</span>}
+                        </div>
                       </td>
 
                       {/* Origem */}
@@ -185,6 +243,31 @@ export default function LeadsContent({ leads }: { leads: Lead[] }) {
                         </span>
                       </td>
 
+                      {/* Bot */}
+                      <td className="px-4 py-3">
+                        <div className="flex flex-col gap-0.5">
+                          <button
+                            onClick={() => handleToggleAi(lead)}
+                            disabled={togglingAi === lead.id}
+                            title={lead.ai_active ? 'IA ativa — clique para pausar' : 'IA pausada — clique para reativar'}
+                            className={`text-xs font-medium px-2 py-0.5 rounded-full transition-colors ${
+                              lead.ai_active
+                                ? 'bg-emerald-100 text-emerald-700 hover:bg-red-100 hover:text-red-700'
+                                : 'bg-gray-100 text-gray-500 hover:bg-emerald-100 hover:text-emerald-700'
+                            }`}
+                          >
+                            {togglingAi === lead.id ? '...' : lead.ai_active ? 'Ativa' : 'Pausada'}
+                          </button>
+                          {!lead.ai_active && lead.ai_paused_reason && (
+                            <span className="text-[10px] text-muted-foreground leading-none px-1">
+                              {lead.ai_paused_reason === 'transbordo' && 'pediu humano'}
+                              {lead.ai_paused_reason === 'encerramento' && 'conversa encerrada'}
+                              {lead.ai_paused_reason === 'manual' && 'pausado manualmente'}
+                            </span>
+                          )}
+                        </div>
+                      </td>
+
                       {/* Data */}
                       <td className="px-4 py-3 text-muted-foreground text-xs whitespace-nowrap">
                         {formatDate(lead.created_at)}
@@ -192,12 +275,20 @@ export default function LeadsContent({ leads }: { leads: Lead[] }) {
 
                       {/* Ações */}
                       <td className="px-4 py-3">
-                        <button
-                          onClick={() => openDialog(lead)}
-                          className="text-xs text-ds-primary-600 hover:text-ds-primary-800 font-medium underline underline-offset-2"
-                        >
-                          Atualizar status
-                        </button>
+                        <div className="flex items-center gap-3">
+                          <button
+                            onClick={() => openDialog(lead)}
+                            className="text-xs text-ds-primary-600 hover:text-ds-primary-800 font-medium underline underline-offset-2"
+                          >
+                            Atualizar status
+                          </button>
+                          <button
+                            onClick={() => openDeleteDialog(lead)}
+                            className="text-xs text-red-500 hover:text-red-700 font-medium underline underline-offset-2"
+                          >
+                            Apagar
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   )
@@ -249,6 +340,36 @@ export default function LeadsContent({ leads }: { leads: Lead[] }) {
             className="px-4 py-2 text-sm rounded-lg bg-ds-primary-600 hover:bg-ds-primary-700 text-white font-medium transition-colors disabled:opacity-60"
           >
             {saving ? 'Salvando...' : 'Salvar'}
+          </button>
+        </div>
+      </dialog>
+      {/* Native Dialog — confirmar exclusão */}
+      <dialog
+        ref={deleteDialogRef}
+        className="rounded-xl shadow-xl border border-border bg-card p-0 w-full max-w-sm backdrop:bg-black/40"
+        onClose={closeDeleteDialog}
+      >
+        <div className="px-5 py-4 border-b border-border">
+          <h2 className="text-base font-semibold text-foreground">Apagar lead</h2>
+        </div>
+        <div className="px-5 py-4">
+          <p className="text-sm text-muted-foreground">Esta ação é irreversível. Deseja realmente apagar este lead?</p>
+        </div>
+        <div className="px-5 py-4 border-t border-border flex justify-end gap-2">
+          <button
+            type="button"
+            onClick={closeDeleteDialog}
+            className="px-4 py-2 text-sm rounded-lg border border-border bg-background hover:bg-muted text-foreground transition-colors"
+          >
+            Cancelar
+          </button>
+          <button
+            type="button"
+            onClick={handleDeleteLead}
+            disabled={saving}
+            className="px-4 py-2 text-sm rounded-lg bg-red-600 hover:bg-red-700 text-white font-medium transition-colors disabled:opacity-60"
+          >
+            {saving ? 'Apagando...' : 'Apagar'}
           </button>
         </div>
       </dialog>

@@ -5,7 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { toast } from 'sonner'
-import { Loader2 } from 'lucide-react'
+import { Loader2, AlertCircle } from 'lucide-react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -27,10 +27,17 @@ interface VehicleFormProps {
   initialPhotos?: { id: string; url: string; storage_path: string; is_cover: boolean; sort_order: number }[]
 }
 
+const TAB_FIELDS: Record<string, (keyof VehicleFormData)[]> = {
+  geral:     ['brand', 'model', 'year_model', 'year_manuf', 'color'],
+  tecnico:   ['fuel', 'transmission', 'mileage'],
+  preco:     ['price'],
+}
+
 export function VehicleForm({ storeId, vehicleId, defaultValues, initialPhotos = [] }: VehicleFormProps) {
   const router = useRouter()
   const [saving, setSaving] = useState(false)
   const [savedVehicleId, setSavedVehicleId] = useState<string | null>(vehicleId || null)
+  const [activeTab, setActiveTab] = useState('geral')
 
   const {
     register,
@@ -76,17 +83,43 @@ export function VehicleForm({ storeId, vehicleId, defaultValues, initialPhotos =
     router.push('/admin/vehicles')
   }
 
+  function tabHasError(tab: string) {
+    const fields = TAB_FIELDS[tab] ?? []
+    return fields.some(f => errors[f])
+  }
+
+  const TAB_LABELS: Record<string, string> = {
+    geral: 'Geral', tecnico: 'Técnico', preco: 'Preço', opcionais: 'Opcionais', fotos: 'Fotos',
+  }
+
   return (
-    <form onSubmit={handleSubmit(onSubmit)}>
-      <Tabs defaultValue="geral" className="w-full">
+    <form onSubmit={handleSubmit(onSubmit, (errs) => {
+      // Navega para a primeira aba com erro
+      const firstErrTab = Object.keys(TAB_FIELDS).find(tab =>
+        TAB_FIELDS[tab].some(f => errs[f])
+      )
+      if (firstErrTab) setActiveTab(firstErrTab)
+
+      // Toast com campos faltando
+      const missing = Object.keys(errs).map(f => ({
+        brand: 'Marca', model: 'Modelo', year_model: 'Ano modelo',
+        year_manuf: 'Ano fabricação', color: 'Cor', fuel: 'Combustível',
+        transmission: 'Câmbio', mileage: 'Quilometragem', price: 'Preço',
+      }[f] ?? f)).filter(Boolean)
+      toast.error(`Preencha os campos obrigatórios: ${missing.join(', ')}`)
+    })}>
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="mb-6 bg-slate-100 p-1 rounded-lg h-auto">
           {['geral', 'tecnico', 'preco', 'opcionais', 'fotos'].map(tab => (
             <TabsTrigger
               key={tab}
               value={tab}
-              className="text-sm capitalize data-[state=active]:bg-white data-[state=active]:shadow-sm rounded-md px-4 py-2"
+              className="text-sm capitalize data-[state=active]:bg-white data-[state=active]:shadow-sm rounded-md px-4 py-2 relative"
             >
-              {{ geral: 'Geral', tecnico: 'Técnico', preco: 'Preço', opcionais: 'Opcionais', fotos: 'Fotos' }[tab]}
+              {TAB_LABELS[tab]}
+              {tabHasError(tab) && (
+                <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full" />
+              )}
             </TabsTrigger>
           ))}
         </TabsList>
@@ -351,9 +384,16 @@ export function VehicleForm({ storeId, vehicleId, defaultValues, initialPhotos =
 function Field({ label, error, children }: { label: string; error?: string; children: React.ReactNode }) {
   return (
     <div className="space-y-1.5">
-      <Label className="text-sm font-medium text-slate-700">{label}</Label>
-      {children}
-      {error && <p className="text-xs text-red-600">{error}</p>}
+      <Label className={`text-sm font-medium ${error ? 'text-red-600' : 'text-slate-700'}`}>{label}</Label>
+      <div className={error ? '[&_input]:border-red-400 [&_input]:focus-visible:ring-red-300 [&_.select-trigger]:border-red-400' : ''}>
+        {children}
+      </div>
+      {error && (
+        <p className="text-xs text-red-600 flex items-center gap-1">
+          <AlertCircle size={11} className="shrink-0" />
+          {error}
+        </p>
+      )}
     </div>
   )
 }

@@ -71,6 +71,7 @@ export async function PanelLayout({ children, topbar }: PanelLayoutProps) {
   const userName = user.user_metadata?.full_name || user.email?.split('@')[0] || 'Usuário'
   const userInitials = getInitials(userName)
   const userRole = storeUser.role === 'owner' ? 'Dono da loja' : 'Vendedor'
+  const isMaster = user.user_metadata?.is_master === true
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
@@ -80,6 +81,7 @@ export async function PanelLayout({ children, topbar }: PanelLayoutProps) {
         userName={userName}
         userRole={userRole}
         userInitials={userInitials}
+        isMaster={isMaster}
       />
 
       {/* Content area */}
