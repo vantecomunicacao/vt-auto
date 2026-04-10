@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
 import { Toaster } from '@/components/ui/sonner'
+import { ProgressBar } from '@/components/ProgressBar'
 import './globals.css'
 
 const inter = Inter({
@@ -17,6 +18,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="pt-BR" className={inter.variable}>
       <body>
+        <ProgressBar />
         {children}
         <Toaster richColors position="top-right" />
       </body>
