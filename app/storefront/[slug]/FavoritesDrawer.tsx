@@ -75,7 +75,7 @@ export function FavoritesDrawer({ vehicles, storeSlug, primaryColor }: Favorites
           ) : (
             favVehicles.map(vehicle => (
               <div key={vehicle.id} className="flex gap-3 bg-gray-50 rounded-xl overflow-hidden border border-gray-100">
-                <Link href={`/storefront/${storeSlug}/veiculo/${vehicle.slug}`} onClick={() => setOpen(false)}>
+                <Link href={`/veiculo/${vehicle.slug}`} onClick={() => setOpen(false)}>
                   {vehicle.cover_image_url ? (
                     <img src={vehicle.cover_image_url} alt={`${vehicle.brand} ${vehicle.model}`} className="w-24 h-20 object-cover flex-shrink-0" />
                   ) : (
@@ -83,7 +83,7 @@ export function FavoritesDrawer({ vehicles, storeSlug, primaryColor }: Favorites
                   )}
                 </Link>
                 <div className="flex-1 min-w-0 py-2 pr-2">
-                  <Link href={`/storefront/${storeSlug}/veiculo/${vehicle.slug}`} onClick={() => setOpen(false)}>
+                  <Link href={`/veiculo/${vehicle.slug}`} onClick={() => setOpen(false)}>
                     <p className="text-sm font-semibold text-gray-900 truncate hover:underline">
                       {vehicle.brand} {vehicle.model}
                     </p>

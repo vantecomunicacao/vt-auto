@@ -104,7 +104,7 @@ export function VehicleDetailVTLX({
             </div>
           </div>
           <Link
-            href={`/storefront/${slug}`}
+            href="/"
             className="inline-flex items-center gap-1.5 text-xs sm:text-sm bg-white/20 hover:bg-white/30 transition-colors px-4 py-2 rounded-full font-medium"
           >
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-3.5 h-3.5">

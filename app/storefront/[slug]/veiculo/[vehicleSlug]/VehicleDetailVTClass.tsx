@@ -144,7 +144,7 @@ export function VehicleDetailVTClass({
             <span className="font-bold text-lg">{store.name}</span>
           </div>
           <Link
-            href={`/storefront/${slug}`}
+            href="/"
             className="inline-flex items-center gap-1.5 text-sm bg-white/20 hover:bg-white/30 transition-colors px-3 py-1.5 rounded-full font-medium"
           >
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">

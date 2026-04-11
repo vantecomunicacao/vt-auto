@@ -41,6 +41,15 @@ export async function proxy(request: NextRequest) {
       return await updateSession(request, response)
     }
 
+    // EXCEÇÃO: Se for uma rota de admin ou auth, não redireciona para storefront
+    if (
+      pathname.startsWith('/admin') ||
+      pathname.startsWith('/login') ||
+      pathname.startsWith('/reset-password')
+    ) {
+      return await updateSession(request, NextResponse.next())
+    }
+
     // [slug].autoagente.com.br → /storefront/[slug]/...
     const url = request.nextUrl.clone()
     url.pathname = `/storefront/${subdomain}${pathname}`

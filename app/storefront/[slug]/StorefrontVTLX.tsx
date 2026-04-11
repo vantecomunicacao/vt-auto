@@ -216,7 +216,7 @@ export function StorefrontVTLX({ vehicles, sf, storeSlug, primaryColor, secondar
       ) : (
         <div className={`grid grid-cols-2 gap-3 sm:gap-4 ${{ '2': 'sm:grid-cols-2', '3': 'sm:grid-cols-2 lg:grid-cols-3', '4': 'sm:grid-cols-3 lg:grid-cols-4' }[sf.grid_cols]}`}>
           {filtered.map((vehicle, index) => {
-            const vehicleHref = `/storefront/${storeSlug}/veiculo/${vehicle.slug}`
+            const vehicleHref = `/veiculo/${vehicle.slug}`
             const waMsg = encodeURIComponent(
               `Olá! Tenho interesse no ${vehicle.brand} ${vehicle.model}${vehicle.year_model ? ` ${vehicle.year_model}` : ''} - Cód: ${vehicle.slug}`
             )

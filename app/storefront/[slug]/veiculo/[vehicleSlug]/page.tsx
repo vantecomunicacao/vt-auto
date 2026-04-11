@@ -192,7 +192,7 @@ export default async function VehicleDetailPage({
             <span className="font-bold text-lg">{store.name}</span>
           </div>
           <Link
-            href={`/storefront/${slug}`}
+            href="/"
             className="inline-flex items-center gap-1.5 text-sm bg-white/20 hover:bg-white/30 transition-colors px-3 py-1.5 rounded-full font-medium"
           >
             <svg

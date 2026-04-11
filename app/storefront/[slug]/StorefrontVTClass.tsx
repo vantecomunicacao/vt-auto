@@ -221,7 +221,7 @@ export function StorefrontVTClass({ vehicles, sf, storeSlug, primaryColor, secon
       ) : (
         <div className={`grid grid-cols-2 gap-2 sm:gap-3 ${gridClass}`}>
           {filtered.map((vehicle, index) => {
-            const vehicleHref = `/storefront/${storeSlug}/veiculo/${vehicle.slug}`
+            const vehicleHref = `/veiculo/${vehicle.slug}`
             const waMsg = encodeURIComponent(
               `Olá! Tenho interesse no ${vehicle.brand} ${vehicle.model}${vehicle.year_model ? ` ${vehicle.year_model}` : ''}`
             )

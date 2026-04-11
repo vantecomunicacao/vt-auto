@@ -1,5 +1,17 @@
 {
     "mcpServers": {
+        "coolify": {
+            "command": "/Users/leonardobarco/.nvm/versions/node/v24.13.0/bin/npx",
+            "args": [
+                "-y",
+                "@masonator/coolify-mcp"
+            ],
+            "env": {
+                "COOLIFY_ACCESS_TOKEN": "6|fKZDbHTqA8owpD6bHNaYT1DXJqLIDlS3Wjgog9UU8e0a8eb4",
+                "COOLIFY_URL": "http://72.60.248.166:8000",
+                "PATH": "/Users/leonardobarco/.nvm/versions/node/v24.13.0/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+            }
+        },
         "context7": {
             "command": "npx",
             "args": [
@@ -16,7 +28,6 @@
                 "mcp"
             ]
         }
-        //other mcp servers
     }
 }
 
