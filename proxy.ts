@@ -29,14 +29,18 @@ export async function proxy(request: NextRequest) {
   if (isSubdomain) {
     if (subdomain === 'master') {
       const url = request.nextUrl.clone()
-      url.pathname = `/master${pathname}`
+      if (!pathname.startsWith('/master')) {
+        url.pathname = `/master${pathname}`
+      }
       const response = NextResponse.rewrite(url)
       return await updateSession(request, response)
     }
 
     if (subdomain === 'app') {
       const url = request.nextUrl.clone()
-      url.pathname = `/admin${pathname}`
+      if (!pathname.startsWith('/admin')) {
+        url.pathname = `/admin${pathname}`
+      }
       const response = NextResponse.rewrite(url)
       return await updateSession(request, response)
     }
