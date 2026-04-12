@@ -5,6 +5,11 @@ import { enqueueMessage, enqueueMedia } from './agent'
 import { isBotSentMessage, markAsRead, sendReply, sendPresenceOnce } from './evolution'
 import { streamLogsToClient } from './logger'
 import { createOrGetQR, checkStatus, disconnectInstance, instanceName } from './whatsapp'
+
+async function getInstanceName(storeId: string): Promise<string> {
+  const { data } = await supabase.from('stores').select('whatsapp_instance').eq('id', storeId).single()
+  return data?.whatsapp_instance ?? instanceName(storeId)
+}
 import { addKnowledge, deleteKnowledge, listKnowledge } from './rag'
 import { runFollowUpCycle } from './followup'
 import { supabase } from './db'
@@ -159,7 +164,7 @@ app.get('/whatsapp/qr', async (req, res) => {
   if (!storeId) { res.sendStatus(400); return }
   try {
     const webhookUrl = `${process.env.PUBLIC_URL ?? `http://localhost:${PORT}`}/webhook`
-    const instance = instanceName(storeId)
+    const instance = await getInstanceName(storeId)
     const data = await createOrGetQR(instance, webhookUrl)
     await supabase.from('stores').update({ whatsapp_instance: instance }).eq('id', storeId)
     res.json(data)
@@ -172,7 +177,7 @@ app.get('/whatsapp/status', async (req, res) => {
   const storeId = req.query.store_id as string
   if (!storeId) { res.sendStatus(400); return }
   try {
-    res.json(await checkStatus(instanceName(storeId)))
+    res.json(await checkStatus(await getInstanceName(storeId)))
   } catch (err) {
     res.status(500).json({ error: err instanceof Error ? err.message : String(err) })
   }
@@ -182,7 +187,7 @@ app.delete('/whatsapp/disconnect', async (req, res) => {
   const storeId = req.query.store_id as string
   if (!storeId) { res.sendStatus(400); return }
   try {
-    await disconnectInstance(instanceName(storeId))
+    await disconnectInstance(await getInstanceName(storeId))
     await supabase.from('stores').update({ whatsapp_instance: null, agent_active: false }).eq('id', storeId)
     res.json({ ok: true })
   } catch (err) {
