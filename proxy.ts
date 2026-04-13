@@ -33,6 +33,10 @@ export async function proxy(request: NextRequest) {
         url.pathname = `/master${pathname}`
       }
       const response = NextResponse.rewrite(url)
+      // Não bloqueia rotas de login/auth do master
+      if (pathname.startsWith('/master/login') || pathname.startsWith('/master/reset-password')) {
+        return response
+      }
       return await updateSession(request, response)
     }
 
