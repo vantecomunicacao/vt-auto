@@ -28,15 +28,17 @@ export async function proxy(request: NextRequest) {
   // Roteamento por subdomínio
   if (isSubdomain) {
     if (subdomain === 'master') {
+      // Rotas públicas do master — não requer autenticação
+      if (pathname === '/' || pathname.startsWith('/login') || pathname.startsWith('/master/login') || pathname.startsWith('/master/reset-password')) {
+        const url = request.nextUrl.clone()
+        url.pathname = '/master/login'
+        return NextResponse.rewrite(url)
+      }
       const url = request.nextUrl.clone()
       if (!pathname.startsWith('/master')) {
         url.pathname = `/master${pathname}`
       }
       const response = NextResponse.rewrite(url)
-      // Não bloqueia rotas de login/auth do master
-      if (pathname.startsWith('/master/login') || pathname.startsWith('/master/reset-password')) {
-        return response
-      }
       return await updateSession(request, response)
     }
 
