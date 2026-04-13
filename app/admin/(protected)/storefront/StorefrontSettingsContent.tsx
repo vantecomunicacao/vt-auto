@@ -239,7 +239,8 @@ export function StorefrontSettingsContent({ slug, initialSettings, initialStoreD
     }
   }
 
-  const vitrineUrl = slug ? `/storefront/${slug}` : null
+  const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN ?? 'localhost:3000'
+  const vitrineUrl = slug ? `https://${slug}.${rootDomain}` : null
 
   const SaveBtn = ({ onClick, label = 'Salvar' }: { onClick: () => void; label?: string }) => (
     <div className="flex justify-end pt-2">
@@ -258,7 +259,7 @@ export function StorefrontSettingsContent({ slug, initialSettings, initialStoreD
         <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 flex items-center justify-between gap-3">
           <div>
             <p className="text-xs font-medium text-blue-700 mb-0.5">URL da sua vitrine</p>
-            <code className="text-sm text-blue-900 font-mono">/storefront/{slug}</code>
+            <code className="text-sm text-blue-900 font-mono">{slug}.{rootDomain}</code>
           </div>
           <a
             href={vitrineUrl}

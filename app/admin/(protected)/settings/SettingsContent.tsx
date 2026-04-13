@@ -97,10 +97,10 @@ export function SettingsContent() {
             <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 flex items-center justify-between gap-3">
               <div>
                 <p className="text-xs font-medium text-blue-700 mb-0.5">URL da sua vitrine</p>
-                <code className="text-sm text-blue-900 font-mono">/storefront/{slug}</code>
+                <code className="text-sm text-blue-900 font-mono">{slug}.{process.env.NEXT_PUBLIC_ROOT_DOMAIN ?? 'localhost:3000'}</code>
               </div>
               <a
-                href={`/storefront/${slug}`}
+                href={`https://${slug}.${process.env.NEXT_PUBLIC_ROOT_DOMAIN ?? 'localhost:3000'}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="shrink-0 text-xs font-medium text-white px-3 py-1.5 rounded-lg"
