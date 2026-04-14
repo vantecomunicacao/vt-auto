@@ -1,3 +1,4 @@
+import { safeDecrypt } from './crypto'
 import { supabase } from './db'
 import { logStep } from './logger'
 import { sendMessage, sendPresenceOnce } from './evolution'
@@ -86,7 +87,7 @@ export async function runFollowUpCycle(): Promise<void> {
         if (!leadSentMessage) continue
 
         // Gera mensagem personalizada via OpenAI
-        const openai = new OpenAI({ apiKey: store.openai_api_key })
+        const openai = new OpenAI({ apiKey: safeDecrypt(store.openai_api_key) })
 
         const systemPrompt = [
           store.agent_prompt || 'Você é um assistente de vendas especializado em veículos.',

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Button } from '@/components/ui/button'
+import { useAutoSave } from '@/hooks/useAutoSave'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
@@ -10,8 +10,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { toast } from 'sonner'
 import { Loader2, Bot, Eye, EyeOff, KeyRound, Smartphone, BookOpen, Clock, Settings, RotateCcw } from 'lucide-react'
-import { useUnsavedChanges } from '@/hooks/useUnsavedChanges'
-import { UnsavedChangesBar } from '@/components/admin/UnsavedChangesBar'
 import { WhatsAppConnect } from './WhatsAppConnect'
 import { KnowledgeEditor } from './KnowledgeEditor'
 import { FollowUpConfig } from './FollowUpConfig'
@@ -27,7 +25,6 @@ interface Props {
 
 export function AgentContent({ storeId, followUpEnabled, followUpConfig, agentHours }: Props) {
   const [loading, setLoading] = useState(true)
-  const [saving, setSaving] = useState(false)
   const [showKey, setShowKey] = useState(false)
   const [msgSizeMode, setMsgSizeMode] = useState<'small' | 'medium' | 'large' | 'custom'>('medium')
   const DEFAULT_PROMPT = `Você é um assistente virtual especializado na venda de carros da **VT Autos Exemplo**
@@ -118,6 +115,7 @@ E, se ele quiser, **transfira imediatamente para um humano**, finalizando o aten
     agent_context_window: 15,
     agent_debounce_seconds: 3,
     agent_cooldown_minutes: 30,
+    agent_rate_limit: 20,
     notification_phone: '',
     agent_max_message_chars: 300,
     agent_typing_speed_ms: 20,
@@ -126,8 +124,6 @@ E, se ele quiser, **transfira imediatamente para um humano**, finalizando o aten
     agent_stop_on_end: true,
   }
   const [form, setForm] = useState(FORM_DEFAULTS)
-  const [savedForm, setSavedForm] = useState(FORM_DEFAULTS)
-  const { isDirty } = useUnsavedChanges(form, savedForm)
 
   useEffect(() => {
     async function load() {
@@ -149,6 +145,7 @@ E, se ele quiser, **transfira imediatamente para um humano**, finalizando o aten
               agent_context_window: store.agent_context_window ?? 15,
               agent_debounce_seconds: store.agent_debounce_seconds ?? 3,
               agent_cooldown_minutes: store.agent_cooldown_minutes ?? 30,
+              agent_rate_limit: store.agent_rate_limit ?? 20,
               notification_phone: store.notification_phone || '',
               agent_max_message_chars: chars,
               agent_typing_speed_ms: store.agent_typing_speed_ms ?? 20,
@@ -157,7 +154,6 @@ E, se ele quiser, **transfira imediatamente para um humano**, finalizando o aten
               agent_stop_on_end: store.agent_stop_on_end ?? true,
             }
             setForm(loaded)
-            setSavedForm(loaded)
           }
         }
       } finally {
@@ -176,27 +172,21 @@ E, se ele quiser, **transfira imediatamente para um humano**, finalizando o aten
     toast.info('Prompt redefinido para o modelo padrão. Salve para confirmar.')
   }
 
-  async function handleSave() {
-    setSaving(true)
-    try {
+  useAutoSave(loading ? null : form, {
+    onSave: async (currentForm) => {
+      if (!currentForm) return
       const res = await fetch('/api/settings', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
+        body: JSON.stringify(currentForm),
       })
       if (!res.ok) {
         const data = await res.json().catch(() => ({}))
         toast.error(data.error ?? 'Erro ao salvar.')
-      } else {
-        toast.success('Configurações salvas!')
-        setSavedForm(form)
+        throw new Error('save failed')
       }
-    } catch {
-      toast.error('Erro ao salvar.')
-    } finally {
-      setSaving(false)
-    }
-  }
+    },
+  })
 
   if (loading) return (
     <div className="flex items-center justify-center h-40">
@@ -206,7 +196,6 @@ E, se ele quiser, **transfira imediatamente para um humano**, finalizando o aten
 
   return (
     <div className="max-w-2xl space-y-5">
-      <UnsavedChangesBar isDirty={isDirty} />
 
       {/* Toggle principal — sempre visível */}
       <div className="bg-card border border-border rounded-xl p-5 shadow-sm">
@@ -254,12 +243,16 @@ E, se ele quiser, **transfira imediatamente para um humano**, finalizando o aten
           <div className="bg-card border border-border rounded-xl p-5 shadow-sm space-y-4">
             <p className="text-sm font-medium text-slate-900">Personalidade</p>
 
+            {/* Campos ocultos para enganar o heurístico de login do Chrome */}
+            <input type="text" name="fake_user" autoComplete="username" aria-hidden="true" className="hidden" readOnly />
+            <input type="password" name="fake_pass" autoComplete="new-password" aria-hidden="true" className="hidden" readOnly />
+
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <Label className="text-sm font-medium text-slate-700">Nome do agente</Label>
                 <Input value={form.agent_name}
                   onChange={e => setForm(f => ({ ...f, agent_name: e.target.value }))}
-                  className="h-10" placeholder="AutoAgente" />
+                  className="h-10" placeholder="AutoAgente" autoComplete="off" />
               </div>
               <div className="space-y-1.5">
                 <Label className="text-sm font-medium text-slate-700">Tom de voz</Label>
@@ -338,6 +331,7 @@ E, se ele quiser, **transfira imediatamente para um humano**, finalizando o aten
                     value={form.openai_api_key}
                     onChange={e => setForm(f => ({ ...f, openai_api_key: e.target.value }))}
                     placeholder="sk-..."
+                    autoComplete="new-password"
                     className="h-10 pr-10 font-mono text-sm"
                   />
                   <button type="button" onClick={() => setShowKey(v => !v)}
@@ -352,6 +346,7 @@ E, se ele quiser, **transfira imediatamente para um humano**, finalizando o aten
                 <Select value={form.openai_model} onValueChange={v => setForm(f => ({ ...f, openai_model: v ?? '' }))}>
                   <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="gpt-4.1-mini">GPT-4.1 Mini (rápido e econômico)</SelectItem>
                     <SelectItem value="gpt-4o-mini">GPT-4o Mini (rápido e econômico)</SelectItem>
                     <SelectItem value="gpt-4o">GPT-4o (mais inteligente)</SelectItem>
                     <SelectItem value="gpt-3.5-turbo">GPT-3.5 Turbo (legado)</SelectItem>
@@ -462,6 +457,21 @@ E, se ele quiser, **transfira imediatamente para um humano**, finalizando o aten
                 <p className="text-xs text-muted-foreground">O bot fica em silêncio por este período após uma mensagem enviada pelo atendente humano.</p>
               </div>
               <div className="space-y-1.5">
+                <Label className="text-sm font-medium text-slate-700">Limite de mensagens por hora</Label>
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="number"
+                    min={1}
+                    max={200}
+                    value={form.agent_rate_limit}
+                    onChange={e => setForm(f => ({ ...f, agent_rate_limit: Number(e.target.value) }))}
+                    className="h-10 w-24"
+                  />
+                  <span className="text-sm text-muted-foreground">mensagens/hora por lead</span>
+                </div>
+                <p className="text-xs text-muted-foreground">Se um lead ultrapassar esse limite, o agente é pausado automaticamente e você recebe um aviso. Útil para evitar loops infinitos.</p>
+              </div>
+              <div className="space-y-1.5">
                 <Label className="text-sm font-medium text-slate-700">Número para notificação</Label>
                 <Input
                   type="tel"
@@ -475,12 +485,6 @@ E, se ele quiser, **transfira imediatamente para um humano**, finalizando o aten
             </div>
           </div>
 
-          <div className="flex justify-end">
-            <Button onClick={handleSave} disabled={saving} className="h-9 px-5 text-sm text-white"
-              style={{ background: 'var(--ds-primary-600)' }}>
-              {saving ? <><Loader2 size={14} className="animate-spin mr-2" />Salvando...</> : 'Salvar configurações'}
-            </Button>
-          </div>
         </TabsContent>
 
         {/* ── Tab: WhatsApp ──────────────────────────────────────────────── */}
@@ -507,6 +511,7 @@ E, se ele quiser, **transfira imediatamente para um humano**, finalizando o aten
           <AgentHours storeId={storeId} initialHours={agentHours} />
         </TabsContent>
       </Tabs>
+
     </div>
   )
 }

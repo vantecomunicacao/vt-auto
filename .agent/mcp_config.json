@@ -7,8 +7,8 @@
                 "@masonator/coolify-mcp"
             ],
             "env": {
-                "COOLIFY_ACCESS_TOKEN": "6|fKZDbHTqA8owpD6bHNaYT1DXJqLIDlS3Wjgog9UU8e0a8eb4",
-                "COOLIFY_URL": "http://72.60.248.166:8000",
+                "COOLIFY_ACCESS_TOKEN": "8|yOvoaWMzVNxbmAoL3x5z7wiw1EECKiF5dOG795YUfe2bf2e7",
+                "COOLIFY_BASE_URL": "http://72.60.248.166:8000",
                 "PATH": "/Users/leonardobarco/.nvm/versions/node/v24.13.0/bin:/usr/bin:/bin:/usr/sbin:/sbin"
             }
         },

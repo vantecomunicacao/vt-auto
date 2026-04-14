@@ -1,7 +1,37 @@
 import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
 
+// Rate limiting simples em memória: máx 20 requisições por IP a cada 60s
+const rateLimitMap = new Map<string, { count: number; resetAt: number }>()
+const RATE_LIMIT_MAX = 20
+const RATE_LIMIT_WINDOW_MS = 60_000
+
+function checkRateLimit(ip: string): boolean {
+  const now = Date.now()
+  const entry = rateLimitMap.get(ip)
+
+  if (!entry || now > entry.resetAt) {
+    rateLimitMap.set(ip, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS })
+    return true
+  }
+
+  if (entry.count >= RATE_LIMIT_MAX) return false
+
+  entry.count++
+  return true
+}
+
 export async function GET(request: Request) {
+  const ip =
+    (request as Request & { headers: Headers }).headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown'
+
+  if (!checkRateLimit(ip)) {
+    return NextResponse.json(
+      { available: false, error: 'Muitas requisições. Aguarde um momento.' },
+      { status: 429 }
+    )
+  }
+
   const { searchParams } = new URL(request.url)
   const slug = searchParams.get('slug')
 

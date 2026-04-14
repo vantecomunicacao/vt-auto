@@ -2,30 +2,20 @@
 
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { toast } from 'sonner'
 import { Loader2 } from 'lucide-react'
-import { useUnsavedChanges } from '@/hooks/useUnsavedChanges'
-import { UnsavedChangesBar } from '@/components/admin/UnsavedChangesBar'
+import { useAutoSave } from '@/hooks/useAutoSave'
 
 export function SettingsContent() {
   const [loading, setLoading] = useState(true)
-  const [saving, setSaving] = useState(false)
   const [storeId, setStoreId] = useState<string | null>(null)
   const [slug, setSlug] = useState('')
 
   const [loja, setLoja] = useState({ name: '', phone: '', landline: '', email: '', city: '', state: '' })
   const [domain, setDomain] = useState({ custom_domain: '' })
-
-  const [savedLoja, setSavedLoja] = useState(loja)
-  const [savedDomain, setSavedDomain] = useState(domain)
-
-  const { isDirty: lojaDirty } = useUnsavedChanges(loja, savedLoja)
-  const { isDirty: domainDirty } = useUnsavedChanges(domain, savedDomain)
-  const isDirty = lojaDirty || domainDirty
 
   useEffect(() => {
     async function load() {
@@ -40,14 +30,8 @@ export function SettingsContent() {
 
         setStoreId(sid)
         setSlug(store.slug || '')
-
-        const loadedLoja = { name: store.name || '', phone: store.phone || '', landline: store.landline || '', email: store.email || '', city: store.city || '', state: store.state || '' }
-        const loadedDomain = { custom_domain: store.custom_domain || '' }
-
-        setLoja(loadedLoja)
-        setDomain(loadedDomain)
-        setSavedLoja(loadedLoja)
-        setSavedDomain(loadedDomain)
+        setLoja({ name: store.name || '', phone: store.phone || '', landline: store.landline || '', email: store.email || '', city: store.city || '', state: store.state || '' })
+        setDomain({ custom_domain: store.custom_domain || '' })
       } finally {
         setLoading(false)
       }
@@ -55,23 +39,35 @@ export function SettingsContent() {
     load()
   }, [])
 
-  async function save(data: Record<string, unknown>, section: 'loja' | 'domain') {
-    if (!storeId) return
-    setSaving(true)
-    const res = await fetch('/api/settings', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data),
-    })
-    setSaving(false)
-    if (!res.ok) {
-      toast.error('Erro ao salvar.')
-    } else {
-      toast.success('Salvo com sucesso!')
-      if (section === 'loja') setSavedLoja(loja)
-      if (section === 'domain') setSavedDomain(domain)
-    }
-  }
+  useAutoSave(loading ? null : loja, {
+    onSave: async (data) => {
+      if (!data || !storeId) return
+      const res = await fetch('/api/settings', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      })
+      if (!res.ok) {
+        toast.error('Erro ao salvar.')
+        throw new Error('save failed')
+      }
+    },
+  })
+
+  useAutoSave(loading ? null : domain, {
+    onSave: async (data) => {
+      if (!data || !storeId) return
+      const res = await fetch('/api/settings', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      })
+      if (!res.ok) {
+        toast.error('Erro ao salvar domínio.')
+        throw new Error('save failed')
+      }
+    },
+  })
 
   if (loading) return (
     <div className="flex items-center justify-center h-40">
@@ -81,7 +77,6 @@ export function SettingsContent() {
 
   return (
     <div className="max-w-2xl">
-      <UnsavedChangesBar isDirty={isDirty} />
       <Tabs defaultValue="loja">
         <TabsList className="mb-6 bg-slate-100 p-1 rounded-lg h-auto">
           {['loja', 'dominio'].map(tab => (
@@ -100,7 +95,7 @@ export function SettingsContent() {
                 <code className="text-sm text-blue-900 font-mono">{slug}.{process.env.NEXT_PUBLIC_ROOT_DOMAIN ?? 'localhost:3000'}</code>
               </div>
               <a
-                href={`https://${slug}.${process.env.NEXT_PUBLIC_ROOT_DOMAIN ?? 'localhost:3000'}`}
+                href={`${(process.env.NEXT_PUBLIC_ROOT_DOMAIN ?? 'localhost:3000').startsWith('localhost') ? 'http' : 'https'}://${slug}.${process.env.NEXT_PUBLIC_ROOT_DOMAIN ?? 'localhost:3000'}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="shrink-0 text-xs font-medium text-white px-3 py-1.5 rounded-lg"
@@ -149,11 +144,6 @@ export function SettingsContent() {
               </div>
             </div>
           </div>
-          <div className="flex justify-end">
-            <Button onClick={() => save(loja, 'loja')} disabled={saving} className="h-9 px-5 text-sm text-white" style={{ background: 'var(--ds-primary-600)' }}>
-              {saving ? <><Loader2 size={14} className="animate-spin mr-2" />Salvando...</> : 'Salvar'}
-            </Button>
-          </div>
         </TabsContent>
 
         {/* Domínio */}
@@ -178,11 +168,6 @@ export function SettingsContent() {
                 Tipo: <strong>CNAME</strong> · Nome: <strong>www</strong> · Valor: <strong>cname.autoagente.com.br</strong>
               </p>
             </div>
-          </div>
-          <div className="flex justify-end">
-            <Button onClick={() => save(domain, 'domain')} disabled={saving} className="h-9 px-5 text-sm text-white" style={{ background: 'var(--ds-primary-600)' }}>
-              {saving ? <><Loader2 size={14} className="animate-spin mr-2" />Salvando...</> : 'Salvar domínio'}
-            </Button>
           </div>
         </TabsContent>
       </Tabs>

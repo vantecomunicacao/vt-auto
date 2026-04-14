@@ -240,7 +240,8 @@ export function StorefrontSettingsContent({ slug, initialSettings, initialStoreD
   }
 
   const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN ?? 'localhost:3000'
-  const vitrineUrl = slug ? `https://${slug}.${rootDomain}` : null
+  const protocol = rootDomain.startsWith('localhost') ? 'http' : 'https'
+  const vitrineUrl = slug ? `${protocol}://${slug}.${rootDomain}` : null
 
   const SaveBtn = ({ onClick, label = 'Salvar' }: { onClick: () => void; label?: string }) => (
     <div className="flex justify-end pt-2">

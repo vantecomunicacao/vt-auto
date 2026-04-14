@@ -12,6 +12,7 @@ async function getInstanceName(storeId: string): Promise<string> {
 }
 import { addKnowledge, deleteKnowledge, listKnowledge } from './rag'
 import { runFollowUpCycle } from './followup'
+import { safeDecrypt } from './crypto'
 import { supabase } from './db'
 
 const app = express()
@@ -81,7 +82,7 @@ app.post('/webhook', (req, res) => {
   const messageType: string = data.messageType ?? ''
 
 
-  // Marca como lida
+  // Marca como lida (usa instância real do Evolution API)
   if (messageId) markAsRead(instance, remoteJid, messageId)
 
   // Texto
@@ -173,6 +174,48 @@ app.get('/whatsapp/qr', async (req, res) => {
   }
 })
 
+// ── WhatsApp TESTE (instância separada, webhook local) ────────────────────────
+// Usa store_<id>_test como nome de instância e aponta o webhook para localhost
+app.get('/whatsapp/qr-test', async (req, res) => {
+  const storeId = req.query.store_id as string
+  if (!storeId) { res.sendStatus(400); return }
+  if (!process.env.PUBLIC_URL) {
+    res.status(400).json({ error: 'Configure PUBLIC_URL no agente/.env com a URL do ngrok antes de usar o WhatsApp Teste.' })
+    return
+  }
+  try {
+    const webhookUrl = `${process.env.PUBLIC_URL}/webhook`
+    const instance = `${await getInstanceName(storeId)}_test`
+    const data = await createOrGetQR(instance, webhookUrl)
+    res.json(data)
+  } catch (err) {
+    res.status(500).json({ error: err instanceof Error ? err.message : String(err) })
+  }
+})
+
+app.get('/whatsapp/status-test', async (req, res) => {
+  const storeId = req.query.store_id as string
+  if (!storeId) { res.sendStatus(400); return }
+  try {
+    const instance = `${await getInstanceName(storeId)}_test`
+    res.json(await checkStatus(instance))
+  } catch (err) {
+    res.status(500).json({ error: err instanceof Error ? err.message : String(err) })
+  }
+})
+
+app.delete('/whatsapp/disconnect-test', async (req, res) => {
+  const storeId = req.query.store_id as string
+  if (!storeId) { res.sendStatus(400); return }
+  try {
+    const instance = `${await getInstanceName(storeId)}_test`
+    await disconnectInstance(instance)
+    res.json({ ok: true })
+  } catch (err) {
+    res.status(500).json({ error: err instanceof Error ? err.message : String(err) })
+  }
+})
+
 app.get('/whatsapp/status', async (req, res) => {
   const storeId = req.query.store_id as string
   if (!storeId) { res.sendStatus(400); return }
@@ -218,7 +261,7 @@ app.post('/knowledge', async (req, res) => {
   }
 
   try {
-    await addKnowledge(store_id, title, content, store.openai_api_key)
+    await addKnowledge(store_id, title, content, safeDecrypt(store.openai_api_key))
     res.json({ ok: true })
   } catch (err) {
     res.status(500).json({ error: err instanceof Error ? err.message : String(err) })

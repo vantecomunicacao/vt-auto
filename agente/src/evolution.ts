@@ -12,50 +12,74 @@ export function isBotSentMessage(messageId: string): boolean {
   return false
 }
 
-export async function sendMessage(instance: string, phone: string, text: string): Promise<void> {
-  const res = await fetch(`${EVO_URL}/message/sendText/${instance}`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      apikey: EVO_KEY,
-    },
-    body: JSON.stringify({ number: phone, text }),
-  })
+/** Retorna variantes do número para tentar quando Evolution API rejeita com exists:false */
+function phoneVariants(phone: string): string[] {
+  const base = phone.replace(/@s\.whatsapp\.net$/, '')
+  const jid = `${base}@s.whatsapp.net`
+  const plain = base
+  // Número BR com 9 extra: 55 + DDD (2) + 9 + 8 dígitos = 13 dígitos
+  if (/^55\d{2}9\d{8}$/.test(base)) {
+    const without9 = `${base.slice(0, 4)}${base.slice(5)}`
+    return [jid, plain, without9, `${without9}@s.whatsapp.net`]
+  }
+  return [jid, plain]
+}
 
-  if (!res.ok) {
+export async function sendMessage(instance: string, phone: string, text: string): Promise<void> {
+  const variants = phoneVariants(phone)
+  let lastError = ''
+
+  for (const number of variants) {
+    const res = await fetch(`${EVO_URL}/message/sendText/${instance}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        apikey: EVO_KEY,
+      },
+      body: JSON.stringify({ number, text }),
+    })
+
+    if (res.ok) {
+      try {
+        const data = await res.clone().json() as { key?: { id?: string }; message?: { key?: { id?: string } } }
+        const id = data?.key?.id ?? data?.message?.key?.id
+        if (id) botSentIds.add(id)
+        if (botSentIds.size > 1000) {
+          const first = botSentIds.values().next().value
+          if (first) botSentIds.delete(first)
+        }
+      } catch { /* não crítico */ }
+      return
+    }
+
     const body = await res.text()
-    throw new Error(`Evolution API ${res.status}: ${body}`)
+    lastError = `Evolution API ${res.status}: ${body}`
+    // Se não for erro de "exists: false", não tenta a próxima variante
+    if (!body.includes('exists')) break
   }
 
-  // Registra o ID da mensagem enviada para ignorar o webhook fromMe
-  try {
-    const data = await res.clone().json() as { key?: { id?: string }; message?: { key?: { id?: string } } }
-    const id = data?.key?.id ?? data?.message?.key?.id
-    if (id) botSentIds.add(id)
-    if (botSentIds.size > 1000) {
-      const first = botSentIds.values().next().value
-      if (first) botSentIds.delete(first)
-    }
-  } catch { /* não crítico */ }
+  throw new Error(lastError)
 }
 
 export async function sendImage(instance: string, phone: string, imageUrl: string, caption?: string): Promise<void> {
-  const res = await fetch(`${EVO_URL}/message/sendMedia/${instance}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', apikey: EVO_KEY },
-    body: JSON.stringify({
-      number: phone,
-      mediatype: 'image',
-      media: imageUrl,
-      caption: caption ?? '',
-    }),
-  })
-  // Registra o ID para ignorar o webhook fromMe
-  try {
-    const data = await res.clone().json() as { key?: { id?: string } }
-    const id = data?.key?.id
-    if (id) botSentIds.add(id)
-  } catch { /* não crítico */ }
+  const variants = phoneVariants(phone)
+  for (const number of variants) {
+    const res = await fetch(`${EVO_URL}/message/sendMedia/${instance}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', apikey: EVO_KEY },
+      body: JSON.stringify({ number, mediatype: 'image', media: imageUrl, caption: caption ?? '' }),
+    })
+    if (res.ok) {
+      try {
+        const data = await res.clone().json() as { key?: { id?: string } }
+        const id = data?.key?.id
+        if (id) botSentIds.add(id)
+      } catch { /* não crítico */ }
+      return
+    }
+    const body = await res.text()
+    if (!body.includes('exists')) break
+  }
 }
 
 export async function markAsRead(instance: string, remoteJid: string, messageId: string): Promise<void> {
@@ -87,21 +111,24 @@ export async function sendReply(
   quotedMessageId: string,
   text: string,
 ): Promise<void> {
-  const res = await fetch(`${EVO_URL}/message/sendText/${instance}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', apikey: EVO_KEY },
-    body: JSON.stringify({
-      number: phone,
-      text,
-      quoted: { key: { remoteJid, fromMe: false, id: quotedMessageId } },
-    }),
-  }).catch(() => null)
-
-  try {
-    const data = await res?.clone().json() as { key?: { id?: string } }
-    const id = data?.key?.id
-    if (id) botSentIds.add(id)
-  } catch { /* não crítico */ }
+  const variants = phoneVariants(phone)
+  for (const number of variants) {
+    const res = await fetch(`${EVO_URL}/message/sendText/${instance}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', apikey: EVO_KEY },
+      body: JSON.stringify({ number, text, quoted: { key: { remoteJid, fromMe: false, id: quotedMessageId } } }),
+    }).catch(() => null)
+    if (res?.ok) {
+      try {
+        const data = await res.clone().json() as { key?: { id?: string } }
+        const id = data?.key?.id
+        if (id) botSentIds.add(id)
+      } catch { /* não crítico */ }
+      return
+    }
+    const body = await res?.text() ?? ''
+    if (!body.includes('exists')) break
+  }
 }
 
 /**

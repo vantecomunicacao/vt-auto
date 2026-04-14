@@ -19,6 +19,10 @@ export type Lead = {
   trade_in: string | null
   created_at: string
   updated_at: string
+  follow_up_total: number | null
+  follow_up_count: number | null
+  last_follow_up_at: string | null
+  last_user_message_at: string | null
   vehicles: Vehicle[] | null
 }
 
@@ -50,6 +54,28 @@ function formatDate(dateStr: string) {
   })
 }
 
+function formatRelative(dateStr: string | null): string {
+  if (!dateStr) return '—'
+  const diff = Date.now() - new Date(dateStr).getTime()
+  const mins = Math.floor(diff / 60000)
+  if (mins < 60) return `${mins}min atrás`
+  const hours = Math.floor(mins / 60)
+  if (hours < 24) return `${hours}h atrás`
+  const days = Math.floor(hours / 24)
+  return `${days}d atrás`
+}
+
+function formatDuration(dateStr: string | null): string {
+  if (!dateStr) return '—'
+  const diff = Date.now() - new Date(dateStr).getTime()
+  const mins = Math.floor(diff / 60000)
+  if (mins < 60) return `${mins}min`
+  const hours = Math.floor(mins / 60)
+  if (hours < 24) return `${hours}h`
+  const days = Math.floor(hours / 24)
+  return `${days}d`
+}
+
 function getVehicleName(lead: Lead) {
   if (lead.vehicles) {
     const v = lead.vehicles?.[0]
@@ -68,6 +94,7 @@ export default function LeadsContent({ leads }: { leads: Lead[] }) {
   const [errorMsg, setErrorMsg] = useState('')
   const [togglingAi, setTogglingAi] = useState<string | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [expandedId, setExpandedId] = useState<string | null>(null)
   const dialogRef = useRef<HTMLDialogElement>(null)
   const deleteDialogRef = useRef<HTMLDialogElement>(null)
 
@@ -208,15 +235,24 @@ export default function LeadsContent({ leads }: { leads: Lead[] }) {
                 {filtered.map((lead, i) => {
                   const statusMeta = getStatusMeta(lead.status)
                   const sourceMeta = SOURCE_MAP[lead.source] ?? { label: lead.source, className: 'bg-gray-100 text-gray-500' }
+                  const isExpanded = expandedId === lead.id
+                  const isLast = i === filtered.length - 1
                   return (
+                    <>
                     <tr
                       key={lead.id}
-                      className={`border-b border-border/50 hover:bg-muted/30 transition-colors ${i === filtered.length - 1 ? 'border-b-0' : ''}`}
+                      onClick={() => setExpandedId(isExpanded ? null : lead.id)}
+                      className={`border-b border-border/50 hover:bg-muted/30 transition-colors cursor-pointer ${isExpanded ? 'bg-muted/20' : ''} ${isLast && !isExpanded ? 'border-b-0' : ''}`}
                     >
                       {/* Contato */}
                       <td className="px-4 py-3">
-                        <div className="font-medium text-foreground">{lead.name ?? '—'}</div>
-                        <div className="text-xs text-muted-foreground">{lead.phone ?? '—'}</div>
+                        <div className="flex items-center gap-1.5">
+                          <span className={`text-muted-foreground transition-transform text-[10px] ${isExpanded ? 'rotate-90' : ''}`}>▶</span>
+                          <div>
+                            <div className="font-medium text-foreground">{lead.name ?? '—'}</div>
+                            <div className="text-xs text-muted-foreground">{lead.phone ?? '—'}</div>
+                          </div>
+                        </div>
                       </td>
 
                       {/* Interesse */}
@@ -247,7 +283,7 @@ export default function LeadsContent({ leads }: { leads: Lead[] }) {
                       <td className="px-4 py-3">
                         <div className="flex flex-col gap-0.5">
                           <button
-                            onClick={() => handleToggleAi(lead)}
+                            onClick={e => { e.stopPropagation(); handleToggleAi(lead) }}
                             disabled={togglingAi === lead.id}
                             title={lead.ai_active ? 'IA ativa — clique para pausar' : 'IA pausada — clique para reativar'}
                             className={`text-xs font-medium px-2 py-0.5 rounded-full transition-colors ${
@@ -277,13 +313,13 @@ export default function LeadsContent({ leads }: { leads: Lead[] }) {
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-3">
                           <button
-                            onClick={() => openDialog(lead)}
+                            onClick={e => { e.stopPropagation(); openDialog(lead) }}
                             className="text-xs text-ds-primary-600 hover:text-ds-primary-800 font-medium underline underline-offset-2"
                           >
                             Atualizar status
                           </button>
                           <button
-                            onClick={() => openDeleteDialog(lead)}
+                            onClick={e => { e.stopPropagation(); openDeleteDialog(lead) }}
                             className="text-xs text-red-500 hover:text-red-700 font-medium underline underline-offset-2"
                           >
                             Apagar
@@ -291,6 +327,33 @@ export default function LeadsContent({ leads }: { leads: Lead[] }) {
                         </div>
                       </td>
                     </tr>
+
+                    {/* Painel expansível */}
+                    {isExpanded && (
+                      <tr key={`${lead.id}-detail`} className={`bg-slate-50 border-b border-border/50 ${isLast ? 'border-b-0' : ''}`}>
+                        <td colSpan={7} className="px-6 py-4">
+                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs">
+                            <div className="flex flex-col gap-0.5">
+                              <span className="text-muted-foreground font-medium uppercase tracking-wide text-[10px]">Follow-ups enviados</span>
+                              <span className="text-foreground font-semibold text-sm">{lead.follow_up_total ?? 0}</span>
+                            </div>
+                            <div className="flex flex-col gap-0.5">
+                              <span className="text-muted-foreground font-medium uppercase tracking-wide text-[10px]">Último follow-up</span>
+                              <span className="text-foreground font-semibold text-sm">{formatRelative(lead.last_follow_up_at)}</span>
+                            </div>
+                            <div className="flex flex-col gap-0.5">
+                              <span className="text-muted-foreground font-medium uppercase tracking-wide text-[10px]">Última msg do lead</span>
+                              <span className="text-foreground font-semibold text-sm">{formatRelative(lead.last_user_message_at)}</span>
+                            </div>
+                            <div className="flex flex-col gap-0.5">
+                              <span className="text-muted-foreground font-medium uppercase tracking-wide text-[10px]">Tempo sem resposta</span>
+                              <span className="text-foreground font-semibold text-sm">{formatDuration(lead.last_user_message_at)}</span>
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                    </>
                   )
                 })}
               </tbody>

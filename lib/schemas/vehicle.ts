@@ -28,8 +28,7 @@ export const vehicleSchema = z.object({
   transmission: z.enum(['manual','automatic','automated','cvt'], 'Selecione o tipo de câmbio'),
   mileage: z.coerce.number('Informe a quilometragem')
     .int()
-    .min(0, 'Quilometragem não pode ser negativa')
-    .default(0),
+    .min(0, 'Quilometragem não pode ser negativa'),
   engine:       z.string().optional(),
   power:        z.string().optional(),
   torque:       z.string().optional(),

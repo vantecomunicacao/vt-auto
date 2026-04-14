@@ -22,7 +22,7 @@ export default async function LeadsPage() {
 
   const { data: leads } = await admin
     .from('leads')
-    .select('id, name, phone, email, source, status, ai_active, ai_paused_reason, vehicle_interest, budget, payment_method, trade_in, created_at, updated_at, vehicles(brand, model, year_model)')
+    .select('id, name, phone, email, source, status, ai_active, ai_paused_reason, vehicle_interest, budget, payment_method, trade_in, created_at, updated_at, follow_up_total, follow_up_count, last_follow_up_at, last_user_message_at, vehicles(brand, model, year_model)')
     .eq('store_id', storeId)
     .order('created_at', { ascending: false })
 

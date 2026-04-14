@@ -1,5 +1,6 @@
 import OpenAI from 'openai'
 import { randomUUID } from 'crypto'
+import { safeDecrypt } from './crypto'
 import { supabase } from './db'
 import { logStep } from './logger'
 import { sendMessage, sendImage, sendPresenceOnce, downloadMedia } from './evolution'
@@ -91,6 +92,7 @@ interface IncomingMessage {
   messageId?: string
 }
 
+
 interface IncomingMedia {
   instance: string
   phone: string
@@ -170,7 +172,7 @@ export async function enqueueMedia(params: IncomingMedia): Promise<void> {
 
   await logStep({ store_id: store.id, session_id: sessionId, phone: params.phone, step: 'webhook_received', status: 'ok', data: { mediaType: params.mediaType, instance: params.instance, push_name: params.pushName } })
 
-  const openai = new OpenAI({ apiKey: store.openai_api_key })
+  const openai = new OpenAI({ apiKey: safeDecrypt(store.openai_api_key) })
   let text = ''
 
   if (params.mediaType === 'audio') {
@@ -243,7 +245,7 @@ export async function processMessage({ instance, phone, message, pushName }: Inc
   const t0 = Date.now()
   const { data: store, error: storeErr } = await supabase
     .from('stores')
-    .select('id, agent_active, agent_name, agent_tone, agent_prompt, agent_hours, openai_api_key, openai_model, whatsapp_instance, agent_cooldown_minutes, notification_phone, agent_context_window, agent_max_message_chars, agent_end_prompt, agent_stop_on_end, agent_typing_speed_ms')
+    .select('id, agent_active, agent_name, agent_tone, agent_prompt, agent_hours, openai_api_key, openai_model, whatsapp_instance, agent_cooldown_minutes, notification_phone, agent_context_window, agent_max_message_chars, agent_end_prompt, agent_stop_on_end, agent_typing_speed_ms, agent_rate_limit')
     .eq('whatsapp_instance', instance)
     .single()
 
@@ -299,6 +301,34 @@ export async function processMessage({ instance, phone, message, pushName }: Inc
     }
   }
 
+  // ── Rate limit — evita loop infinito com lead spammando ──────────────────
+  const rateLimit = (store.agent_rate_limit as number | null) ?? 20
+  const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString()
+  const { count: messagesLastHour } = await supabase
+    .from('agent_conversations')
+    .select('id', { count: 'exact', head: true })
+    .eq('store_id', store.id)
+    .eq('phone', phone)
+    .eq('role', 'assistant')
+    .gte('created_at', oneHourAgo)
+
+  if ((messagesLastHour ?? 0) >= rateLimit) {
+    await logStep({ store_id: store.id, session_id: sessionId, phone, step: 'rate_limit', status: 'ok', data: { messages_last_hour: messagesLastHour, limit: rateLimit } })
+
+    // Notifica o dono da loja via WhatsApp se tiver número configurado
+    if (store.notification_phone && store.whatsapp_instance) {
+      await sendMessage(
+        store.whatsapp_instance,
+        store.notification_phone,
+        `⚠️ *Rate limit atingido*\n\nO lead *${phone}* enviou ${messagesLastHour} mensagens na última hora (limite: ${rateLimit}).\n\nO agente foi pausado para este lead. Acesse o painel para revisar.`,
+      ).catch(() => null)
+    }
+
+    // Pausa IA para este lead automaticamente
+    await supabase.from('leads').update({ ai_active: false }).eq('id', lead.id)
+    return
+  }
+
   await supabase.from('leads').update({
     last_user_message_at: new Date().toISOString(),
     follow_up_count: 0,
@@ -319,22 +349,28 @@ export async function processMessage({ instance, phone, message, pushName }: Inc
 
   // ── 6. RAG + Resumo do estoque ───────────────────────────────────────────
   const t3 = Date.now()
-  const openai = new OpenAI({ apiKey: store.openai_api_key })
+  const openai = new OpenAI({ apiKey: safeDecrypt(store.openai_api_key) })
 
   // Classifica se a mensagem precisa de RAG antes de buscar
-  const classifyRes = await openai.chat.completions.create({
-    model: 'gpt-4o-mini',
-    messages: [
-      { role: 'system', content: 'Você decide se uma mensagem de cliente em uma concessionária precisa buscar na base de conhecimento (políticas, garantias, documentação, financiamento, procedimentos). Responda apenas "sim" ou "nao".' },
-      { role: 'user', content: message },
-    ],
-    max_tokens: 5,
-    temperature: 0,
-  })
-  const needsRag = classifyRes.choices[0]?.message?.content?.trim().toLowerCase().startsWith('sim') ?? false
+  let needsRag = false
+  try {
+    const classifyRes = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [
+        { role: 'system', content: 'Você decide se uma mensagem de cliente em uma concessionária precisa buscar na base de conhecimento (políticas, garantias, documentação, financiamento, procedimentos). Responda apenas "sim" ou "nao".' },
+        { role: 'user', content: message },
+      ],
+      max_tokens: 5,
+      temperature: 0,
+    })
+    needsRag = classifyRes.choices[0]?.message?.content?.trim().toLowerCase().startsWith('sim') ?? false
+  } catch {
+    // Se a classificação falhar, segue sem RAG (não interrompe o atendimento)
+    needsRag = false
+  }
 
   const [knowledge, stockSummary] = await Promise.all([
-    needsRag ? searchKnowledge(store.id, message, store.openai_api_key) : Promise.resolve(''),
+    needsRag ? searchKnowledge(store.id, message, safeDecrypt(store.openai_api_key)) : Promise.resolve(''),
     getStockContext(store.id, 200, 'summary'),
   ])
   await logStep({ store_id: store.id, session_id: sessionId, phone, step: 'rag_search', status: 'ok', data: { needs_rag: needsRag, found: knowledge.length > 0, preview: knowledge.slice(0, 100) }, duration_ms: Date.now() - t3 })
@@ -487,8 +523,26 @@ export async function processMessage({ instance, phone, message, pushName }: Inc
 
     await logStep({ store_id: store.id, session_id: sessionId, phone, step: 'openai_called', status: 'ok', data: { model: store.openai_model, tokens_in: tokensIn, tokens_out: tokensOut, reply_raw: reply, system_prompt: systemPrompt.slice(0, 500) }, duration_ms: Date.now() - t4 })
   } catch (err) {
-    await logStep({ store_id: store.id, session_id: sessionId, phone, step: 'openai_called', status: 'error', data: { error: err instanceof Error ? err.message : String(err) }, duration_ms: Date.now() - t4 })
-    await sendMessage(instance, phone, 'Desculpe, tive um problema ao processar sua mensagem. Tente novamente em alguns instantes.').catch(() => {})
+    const errMsg = err instanceof Error ? err.message : String(err)
+    await logStep({ store_id: store.id, session_id: sessionId, phone, step: 'openai_called', status: 'error', data: { error: errMsg }, duration_ms: Date.now() - t4 })
+
+    // Mensagem humanizada ao lead — não menciona tecnologia
+    await sendMessage(
+      instance,
+      phone,
+      `Olá! Estou verificando algumas informações e retorno em breve. Obrigado pela paciência.`,
+    ).catch(() => null)
+
+    // Detecta tipo de erro para notificação mais útil ao dono
+    const isAuthError = errMsg.toLowerCase().includes('401') || errMsg.toLowerCase().includes('invalid api key') || errMsg.toLowerCase().includes('incorrect api key')
+    const notifyMsg = isAuthError
+      ? `🔴 *Erro no Agente — Chave OpenAI inválida*\n\nA chave de API OpenAI configurada está incorreta ou expirou.\n\nAcesse Agente de IA > Configurações e atualize a chave.\n\nLead afetado: ${phone}`
+      : `🔴 *Erro no Agente — OpenAI indisponível*\n\nNão foi possível gerar resposta para o lead ${phone}.\n\nErro: ${errMsg.slice(0, 200)}\n\nO agente tentará responder normalmente na próxima mensagem.`
+
+    if (store.notification_phone && store.whatsapp_instance) {
+      await sendMessage(store.whatsapp_instance as string, store.notification_phone as string, notifyMsg).catch(() => null)
+    }
+
     return
   }
 

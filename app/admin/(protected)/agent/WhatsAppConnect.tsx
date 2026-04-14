@@ -12,51 +12,48 @@ interface Props {
 
 type Status = 'idle' | 'loading' | 'qr' | 'connected' | 'error'
 
-export function WhatsAppConnect({ storeId }: Props) {
+function useWhatsAppInstance(storeId: string, mode: 'main' | 'test') {
   const [status, setStatus] = useState<Status>('idle')
   const [qr, setQr] = useState<string | null>(null)
   const [polling, setPolling] = useState(false)
 
+  const qrEndpoint    = mode === 'test' ? 'qr-test'         : 'qr'
+  const statusEndpoint = mode === 'test' ? 'status-test'    : 'status'
+  const disconnectEndpoint = mode === 'test' ? 'disconnect-test' : 'disconnect'
+
   const checkConnection = useCallback(async () => {
     try {
-      const res = await fetch(`${AGENT_URL}/whatsapp/status?store_id=${storeId}`)
+      const res = await fetch(`${AGENT_URL}/whatsapp/${statusEndpoint}?store_id=${storeId}`)
       const data = await res.json() as { connected?: boolean }
       if (data.connected) {
         setStatus('connected')
         setPolling(false)
       }
     } catch {
-      // silencioso — continua tentando
+      // silencioso
     }
-  }, [storeId])
+  }, [storeId, statusEndpoint])
 
-  // Polling enquanto mostra QR
   useEffect(() => {
     if (!polling) return
     const interval = setInterval(checkConnection, 3000)
     return () => clearInterval(interval)
   }, [polling, checkConnection])
 
+  useEffect(() => {
+    checkConnection()
+  }, [checkConnection])
+
   async function handleConnect() {
     setStatus('loading')
     setQr(null)
     try {
-      const res = await fetch(`${AGENT_URL}/whatsapp/qr?store_id=${storeId}`)
+      const res = await fetch(`${AGENT_URL}/whatsapp/${qrEndpoint}?store_id=${storeId}`)
       const data = await res.json() as { connected?: boolean; qr?: string; qrcode?: string }
-
-      if (data.connected) {
-        setStatus('connected')
-        return
-      }
-
+      if (data.connected) { setStatus('connected'); return }
       const qrCode = data.qr ?? data.qrcode
-      if (qrCode) {
-        setQr(qrCode)
-        setStatus('qr')
-        setPolling(true)
-      } else {
-        setStatus('error')
-      }
+      if (qrCode) { setQr(qrCode); setStatus('qr'); setPolling(true) }
+      else setStatus('error')
     } catch {
       setStatus('error')
     }
@@ -66,7 +63,7 @@ export function WhatsAppConnect({ storeId }: Props) {
     setStatus('loading')
     setPolling(false)
     try {
-      await fetch(`${AGENT_URL}/whatsapp/disconnect?store_id=${storeId}`, { method: 'DELETE' })
+      await fetch(`${AGENT_URL}/whatsapp/${disconnectEndpoint}?store_id=${storeId}`, { method: 'DELETE' })
       setStatus('idle')
       setQr(null)
     } catch {
@@ -74,19 +71,32 @@ export function WhatsAppConnect({ storeId }: Props) {
     }
   }
 
-  // Verifica status ao montar
-  useEffect(() => {
-    checkConnection()
-  }, [checkConnection])
+  return { status, qr, handleConnect, handleDisconnect }
+}
+
+function WhatsAppCard({
+  label,
+  badge,
+  icon,
+  storeId,
+  mode,
+}: {
+  label: string
+  badge?: React.ReactNode
+  icon: React.ReactNode
+  storeId: string
+  mode: 'main' | 'test'
+}) {
+  const { status, qr, handleConnect, handleDisconnect } = useWhatsAppInstance(storeId, mode)
 
   return (
     <div className="bg-card border border-border rounded-xl p-5 shadow-sm space-y-4">
       <div className="flex items-center gap-2">
-        <Smartphone size={15} className="text-muted-foreground" />
-        <p className="text-sm font-medium text-slate-900">Conexão WhatsApp</p>
+        {icon}
+        <p className="text-sm font-medium text-slate-900">{label}</p>
+        {badge}
       </div>
 
-      {/* Conectado */}
       {status === 'connected' && (
         <div className="space-y-3">
           <div className="flex items-center gap-2 text-emerald-600">
@@ -105,7 +115,6 @@ export function WhatsAppConnect({ storeId }: Props) {
         </div>
       )}
 
-      {/* QR Code */}
       {status === 'qr' && qr && (
         <div className="space-y-3">
           <p className="text-xs text-muted-foreground">
@@ -129,7 +138,6 @@ export function WhatsAppConnect({ storeId }: Props) {
         </div>
       )}
 
-      {/* Idle / erro */}
       {(status === 'idle' || status === 'error') && (
         <div className="space-y-2">
           {status === 'error' && (
@@ -142,13 +150,25 @@ export function WhatsAppConnect({ storeId }: Props) {
         </div>
       )}
 
-      {/* Carregando */}
       {status === 'loading' && (
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
           <Loader2 size={13} className="animate-spin" />
           Processando...
         </div>
       )}
+    </div>
+  )
+}
+
+export function WhatsAppConnect({ storeId }: Props) {
+  return (
+    <div className="space-y-3">
+      <WhatsAppCard
+        label="Conexão WhatsApp"
+        icon={<Smartphone size={15} className="text-muted-foreground" />}
+        storeId={storeId}
+        mode="main"
+      />
     </div>
   )
 }

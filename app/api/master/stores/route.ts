@@ -1,5 +1,6 @@
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { NextRequest } from 'next/server'
+import { buildAgentPrompt } from '@/lib/defaults/agentPrompt'
 
 async function verifyMaster() {
   const supabase = await createClient()
@@ -46,8 +47,8 @@ export async function POST(request: NextRequest) {
     return Response.json({ error: 'Nome da loja, nome, e-mail e senha do ADM são obrigatórios.' }, { status: 400 })
   }
 
-  if (body.owner_password.length < 6) {
-    return Response.json({ error: 'A senha deve ter pelo menos 6 caracteres.' }, { status: 400 })
+  if (body.owner_password.length < 8) {
+    return Response.json({ error: 'A senha deve ter pelo menos 8 caracteres.' }, { status: 400 })
   }
 
   const { adminClient } = auth
@@ -76,6 +77,7 @@ export async function POST(request: NextRequest) {
       phone: body.phone ?? null,
       email: body.email ?? null,
       is_active: true,
+      agent_prompt: buildAgentPrompt(body.store_name),
     })
     .select('id, name, slug, plan, is_active, created_at, city, state, phone')
     .single()

@@ -86,6 +86,7 @@ const BASE_STORE = {
   agent_stock_format: 'full',
   agent_end_prompt: '',
   agent_stop_on_end: true,
+  agent_rate_limit: 20,
 }
 
 const BASE_LEAD = {
@@ -272,7 +273,7 @@ describe('processMessage — OpenAI falha', () => {
     expect(mockSendMessage).toHaveBeenCalledWith(
       'inst-1',
       '5511999990000',
-      expect.stringContaining('Desculpe')
+      expect.stringContaining('verificando algumas informações')
     )
   })
 
@@ -514,5 +515,207 @@ describe('processMessage — race condition lead', () => {
     await processMessage(MSG_PARAMS)
     // Se chegou até enviar resposta, o fallback funcionou
     expect(mockSendMessage).toHaveBeenCalled()
+  })
+})
+
+// ─── Rate limit ───────────────────────────────────────────────────────────────
+
+describe('processMessage — rate limit', () => {
+  function setupWithCount(count: number, storeOverride = {}) {
+    const store = { ...BASE_STORE, ...storeOverride }
+    const lead = { ...BASE_LEAD }
+
+    // Mock que retorna count na query de contagem (sem .single())
+    const chainWithCount = {
+      from: jest.fn().mockReturnThis(),
+      select: jest.fn().mockReturnThis(),
+      insert: jest.fn().mockReturnThis(),
+      update: jest.fn().mockReturnThis(),
+      upsert: jest.fn().mockReturnThis(),
+      delete: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      neq: jest.fn().mockReturnThis(),
+      lt: jest.fn().mockReturnThis(),
+      lte: jest.fn().mockReturnThis(),
+      gt: jest.fn().mockReturnThis(),
+      gte: jest.fn().mockImplementation(() => ({ ...chainWithCount, count, data: null, error: null })),
+      not: jest.fn().mockReturnThis(),
+      order: jest.fn().mockReturnThis(),
+      limit: jest.fn().mockReturnThis(),
+      rpc: jest.fn().mockReturnThis(),
+      single: jest.fn()
+        .mockResolvedValueOnce({ data: store, error: null })
+        .mockResolvedValueOnce({ data: lead, error: null })
+        .mockResolvedValue({ data: [], error: null }),
+      count,
+      data: null,
+      error: null,
+    }
+    supabaseMock = chainWithCount as unknown as ReturnType<typeof makeSupabaseChain>
+  }
+
+  it('pausa o lead e não responde quando rate limit atingido', async () => {
+    setupWithCount(20) // exatamente no limite
+    await processMessage(MSG_PARAMS)
+    expect(mockSendMessage).not.toHaveBeenCalledWith('inst-1', '5511999990000', expect.any(String))
+    expect(supabaseMock.update).toHaveBeenCalledWith(expect.objectContaining({ ai_active: false }))
+  })
+
+  it('loga rate_limit quando limite atingido', async () => {
+    setupWithCount(25)
+    await processMessage(MSG_PARAMS)
+    expect(mockLogStep).toHaveBeenCalledWith(expect.objectContaining({
+      step: 'rate_limit',
+      status: 'ok',
+    }))
+  })
+
+  it('notifica o dono via WhatsApp quando rate limit atingido e notification_phone configurado', async () => {
+    setupWithCount(20, { notification_phone: '5511888880000' })
+    await processMessage(MSG_PARAMS)
+    const notifCall = mockSendMessage.mock.calls.find(c => c[1] === '5511888880000')
+    expect(notifCall).toBeDefined()
+    expect(notifCall?.[2]).toContain('Rate limit')
+  })
+
+  it('processa normalmente quando abaixo do limite', async () => {
+    setupHappyPath() // count undefined → 0, bem abaixo de 20
+    openaiCreateMock.mockResolvedValue(makeOpenAIReply('Posso ajudar!'))
+    await processMessage(MSG_PARAMS)
+    expect(mockSendMessage).toHaveBeenCalledWith('inst-1', '5511999990000', 'Posso ajudar!')
+  })
+})
+
+// ─── Configurações aplicadas no agente ───────────────────────────────────────
+
+describe('processMessage — configurações aplicadas', () => {
+  it('inclui agent_name no system prompt', async () => {
+    setupHappyPath({ agent_name: 'Marcos' })
+    let capturedMessages: unknown[] = []
+    openaiCreateMock.mockImplementation((args: { messages: unknown[] }) => {
+      capturedMessages = args.messages
+      return Promise.resolve(makeOpenAIReply('Ok!'))
+    })
+    await processMessage(MSG_PARAMS)
+    const systemMsg = (capturedMessages as Array<{ role: string; content: string }>)
+      .find(m => m.role === 'system')
+    expect(systemMsg?.content).toContain('Marcos')
+  })
+
+  it('inclui agent_prompt no system prompt', async () => {
+    setupHappyPath({ agent_prompt: 'Você é especialista em carros elétricos.' })
+    let capturedMessages: unknown[] = []
+    openaiCreateMock.mockImplementation((args: { messages: unknown[] }) => {
+      capturedMessages = args.messages
+      return Promise.resolve(makeOpenAIReply('Ok!'))
+    })
+    await processMessage(MSG_PARAMS)
+    const systemMsg = (capturedMessages as Array<{ role: string; content: string }>)
+      .find(m => m.role === 'system')
+    expect(systemMsg?.content).toContain('especialista em carros elétricos')
+  })
+
+  it('inclui instrução de tom professional no system prompt', async () => {
+    setupHappyPath({ agent_tone: 'professional' })
+    let capturedMessages: unknown[] = []
+    openaiCreateMock.mockImplementation((args: { messages: unknown[] }) => {
+      capturedMessages = args.messages
+      return Promise.resolve(makeOpenAIReply('Ok!'))
+    })
+    await processMessage(MSG_PARAMS)
+    const systemMsg = (capturedMessages as Array<{ role: string; content: string }>)
+      .find(m => m.role === 'system')
+    expect(systemMsg?.content).toContain('profissional')
+  })
+
+  it('usa openai_model configurado na chamada à OpenAI', async () => {
+    setupHappyPath({ openai_model: 'gpt-4o' })
+    let capturedModel = ''
+    openaiCreateMock.mockImplementation((args: { model: string }) => {
+      capturedModel = args.model
+      return Promise.resolve(makeOpenAIReply('Ok!'))
+    })
+    await processMessage(MSG_PARAMS)
+    expect(capturedModel).toBe('gpt-4o')
+  })
+})
+
+// ─── RAG ─────────────────────────────────────────────────────────────────────
+
+describe('processMessage — RAG (base de conhecimento)', () => {
+  it('chama searchKnowledge quando classificador responde "sim"', async () => {
+    setupHappyPath()
+    openaiCreateMock
+      .mockResolvedValueOnce({ choices: [{ message: { content: 'sim' } }] }) // classificador
+      .mockResolvedValueOnce(makeOpenAIReply('Aqui está a política de garantia.'))
+    await processMessage(MSG_PARAMS)
+    expect(mockSearchKnowledge).toHaveBeenCalled()
+  })
+
+  it('NÃO chama searchKnowledge quando classificador responde "nao"', async () => {
+    setupHappyPath()
+    openaiCreateMock
+      .mockResolvedValueOnce({ choices: [{ message: { content: 'nao' } }] }) // classificador
+      .mockResolvedValueOnce(makeOpenAIReply('Posso te ajudar com um veículo!'))
+    await processMessage(MSG_PARAMS)
+    expect(mockSearchKnowledge).not.toHaveBeenCalled()
+  })
+
+  it('inclui resultado do RAG no system prompt quando encontrado', async () => {
+    setupHappyPath()
+    mockSearchKnowledge.mockResolvedValue('Garantia: 12 meses para motor e câmbio.')
+    let capturedMessages: unknown[] = []
+    openaiCreateMock
+      .mockResolvedValueOnce({ choices: [{ message: { content: 'sim' } }] })
+      .mockImplementationOnce((args: { messages: unknown[] }) => {
+        capturedMessages = args.messages
+        return Promise.resolve(makeOpenAIReply('A garantia é de 12 meses.'))
+      })
+    await processMessage(MSG_PARAMS)
+    const systemMsg = (capturedMessages as Array<{ role: string; content: string }>)
+      .find(m => m.role === 'system')
+    expect(systemMsg?.content).toContain('Garantia: 12 meses')
+  })
+
+  it('continua atendimento normalmente se RAG não encontrar resultado', async () => {
+    setupHappyPath()
+    mockSearchKnowledge.mockResolvedValue('')
+    openaiCreateMock
+      .mockResolvedValueOnce({ choices: [{ message: { content: 'sim' } }] })
+      .mockResolvedValueOnce(makeOpenAIReply('Posso ajudar com outra coisa?'))
+    await processMessage(MSG_PARAMS)
+    expect(mockSendMessage).toHaveBeenCalledWith('inst-1', '5511999990000', 'Posso ajudar com outra coisa?')
+  })
+})
+
+// ─── Notificação de erro OpenAI ───────────────────────────────────────────────
+
+describe('processMessage — notificação de erro OpenAI', () => {
+  it('envia aviso de chave inválida quando erro 401', async () => {
+    setupHappyPath({ notification_phone: '5511888880000' })
+    openaiCreateMock
+      .mockResolvedValueOnce({ choices: [{ message: { content: 'nao' } }] })
+      .mockRejectedValueOnce(new Error('401 Incorrect API key'))
+    await processMessage(MSG_PARAMS)
+    const notifCall = mockSendMessage.mock.calls.find(c => c[1] === '5511888880000')
+    expect(notifCall?.[2]).toContain('Chave OpenAI inválida')
+  })
+
+  it('envia aviso de instabilidade quando erro genérico', async () => {
+    setupHappyPath({ notification_phone: '5511888880000' })
+    openaiCreateMock
+      .mockResolvedValueOnce({ choices: [{ message: { content: 'nao' } }] })
+      .mockRejectedValueOnce(new Error('Service temporarily unavailable'))
+    await processMessage(MSG_PARAMS)
+    const notifCall = mockSendMessage.mock.calls.find(c => c[1] === '5511888880000')
+    expect(notifCall?.[2]).toContain('OpenAI indisponível')
+  })
+
+  it('não trava quando notification_phone não está configurado', async () => {
+    setupHappyPath({ notification_phone: '' })
+    openaiCreateMock
+      .mockResolvedValueOnce({ choices: [{ message: { content: 'nao' } }] })
+      .mockRejectedValueOnce(new Error('timeout'))
+    await expect(processMessage(MSG_PARAMS)).resolves.not.toThrow()
   })
 })

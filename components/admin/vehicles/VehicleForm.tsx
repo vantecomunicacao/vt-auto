@@ -53,7 +53,6 @@ export function VehicleForm({ storeId, vehicleId, defaultValues, initialPhotos =
       status: 'available',
       fuel: 'flex',
       transmission: 'automatic',
-      mileage: 0,
       ...defaultValues,
     },
   })
@@ -176,7 +175,7 @@ export function VehicleForm({ storeId, vehicleId, defaultValues, initialPhotos =
               )} />
             </Field>
             <Field label="Passageiros">
-              <Input {...register('seats', { valueAsNumber: true })} type="number" placeholder="5" className="h-10" />
+              <Input {...register('seats', { setValueAs: v => v === '' ? undefined : Number(v) })} type="number" placeholder="5" className="h-10" />
             </Field>
           </div>
 
@@ -238,7 +237,7 @@ export function VehicleForm({ storeId, vehicleId, defaultValues, initialPhotos =
           </div>
 
           <Field label="Quilometragem *" error={errors.mileage?.message}>
-            <Input {...register('mileage', { valueAsNumber: true })} type="number" placeholder="35000" className="h-10" />
+            <Input {...register('mileage', { setValueAs: v => v === '' ? undefined : Number(v) })} type="number" placeholder="35000" className="h-10" />
           </Field>
 
           <div className="grid grid-cols-3 gap-4">
