@@ -5,15 +5,25 @@ import { enqueueMessage, enqueueMedia } from './agent'
 import { isBotSentMessage, markAsRead, sendReply, sendPresenceOnce } from './evolution'
 import { streamLogsToClient } from './logger'
 import { createOrGetQR, checkStatus, disconnectInstance, instanceName } from './whatsapp'
+import { supabase } from './db'
+import { addKnowledge, deleteKnowledge, listKnowledge } from './rag'
+import { runFollowUpCycle } from './followup'
+import { safeDecrypt } from './crypto'
+
+// ── Tratamento Global de Erros ───────────────────────────────────────────────
+// Evita que o processo morra em caso de exceções não tratadas em tarefas de fundo
+process.on('uncaughtException', (err) => {
+  console.error('[FATAL] Uncaught Exception:', err)
+})
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('[FATAL] Unhandled Rejection at:', promise, 'reason:', reason)
+})
 
 async function getInstanceName(storeId: string): Promise<string> {
   const { data } = await supabase.from('stores').select('whatsapp_instance').eq('id', storeId).single()
   return data?.whatsapp_instance ?? instanceName(storeId)
 }
-import { addKnowledge, deleteKnowledge, listKnowledge } from './rag'
-import { runFollowUpCycle } from './followup'
-import { safeDecrypt } from './crypto'
-import { supabase } from './db'
 
 const app = express()
 app.use(cors())
@@ -38,15 +48,11 @@ app.post('/webhook', (req, res) => {
 
   const event: string = (body.event ?? '').toLowerCase().replace('.', '_')
 
-  // CONNECTION_UPDATE — atualiza status de conexão no banco
+  // CONNECTION_UPDATE — apenas loga, NÃO desliga o agente automaticamente
   if (event === 'connection_update') {
     const state: string = body.data?.state ?? ''
-    if (state !== 'open') {
-      supabase.from('stores')
-        .update({ agent_active: false })
-        .eq('whatsapp_instance', instance)
-        .then(() => { /* silencioso */ })
-    }
+    console.log(`[agente] Status de conexão da instância ${instance}: ${state}`)
+    // Removido o desligamento automático a pedido do usuário
     return
   }
 
