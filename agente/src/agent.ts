@@ -402,6 +402,8 @@ export async function processMessage({ instance, phone, message, pushName }: Inc
 
     `${stockSummary}\n\nO estoque acima é um resumo. Sempre use a função buscar_veiculos para obter detalhes completos (preço, km, opcionais) antes de apresentar um veículo específico ao cliente. Nunca invente informações de veículos.`,
 
+    'FOTOS — CRÍTICO: Quando quiser enviar fotos de um veículo ao cliente, inclua o marcador [FOTOS:marca:modelo] na sua resposta (ex: [FOTOS:Toyota:Corolla]). O sistema enviará as imagens automaticamente. NUNCA escreva coisas como "[Enviarei as fotos]", "[Fotos do veículo]" ou qualquer texto entre colchetes que não seja um marcador oficial. Os únicos marcadores permitidos são: [FOTOS:marca:modelo], [TRANSBORDO_ATIVADO] e [CONVERSA_ENCERRADA].',
+
     'Quando detectar interesse em veículo específico, orçamento, forma de pagamento ou veículo para troca, chame a função registrar_qualificacao imediatamente.',
 
     'Se o cliente pedir para falar com humano, responda normalmente e inclua [TRANSBORDO_ATIVADO] invisível no final.',
@@ -556,7 +558,9 @@ export async function processMessage({ instance, phone, message, pushName }: Inc
     .replace(/\[TRANSBORDO_ATIVADO\]/g, '')
     .replace(/\[CONVERSA_ENCERRADA\]/g, '')
     .replace(/\[FOTOS:[^\]]+\]/g, '')
+    .replace(/\[(?:enviar|enviando|enviarei|fotos|imagens|photos|foto)[^\]]*\]/gi, '')
     .replace(/:\s*$/, '')
+    .replace(/^\s*\n/gm, '')
     .trim()
 
   if (hasTransbordo && lead) {

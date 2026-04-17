@@ -101,6 +101,7 @@ export async function getVehicleImages(vehicleId: string): Promise<string[]> {
 
 /** Busca o id do veículo pelo nome (marca + modelo) dentro da loja */
 export async function findVehicleId(storeId: string, brand: string, model: string): Promise<string | null> {
+  // Tenta match completo primeiro (ex: "Corolla XEi")
   const { data } = await supabase
     .from('vehicles')
     .select('id')
@@ -110,7 +111,26 @@ export async function findVehicleId(storeId: string, brand: string, model: strin
     .ilike('model', `%${model}%`)
     .limit(1)
     .single()
-  return data?.id ?? null
+
+  if (data?.id) return data.id
+
+  // Fallback: tenta só a primeira palavra do modelo (ex: "Corolla" sem "XEi")
+  // Isso cobre o caso onde o DB tem model="Corolla" e version="XEi"
+  const modelFirstWord = model.split(/\s+/)[0]
+  if (modelFirstWord && modelFirstWord !== model) {
+    const { data: fallback } = await supabase
+      .from('vehicles')
+      .select('id')
+      .eq('store_id', storeId)
+      .eq('status', 'available')
+      .ilike('brand', `%${brand}%`)
+      .ilike('model', `%${modelFirstWord}%`)
+      .limit(1)
+      .single()
+    return fallback?.id ?? null
+  }
+
+  return null
 }
 
 function vehicleToSummary(v: Vehicle): string {
