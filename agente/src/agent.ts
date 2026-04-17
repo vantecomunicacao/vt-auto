@@ -560,7 +560,7 @@ export async function processMessage({ instance, phone, message, pushName }: Inc
     .replace(/\[FOTOS:[^\]]+\]/g, '')
     .replace(/\[(?:enviar|enviando|enviarei|fotos|imagens|photos|foto)[^\]]*\]/gi, '')
     .replace(/:\s*$/, '')
-    .replace(/^\s*\n/gm, '')
+    .replace(/\n{3,}/g, '\n\n')
     .trim()
 
   if (hasTransbordo && lead) {
