@@ -1,10 +1,10 @@
 'use client'
 
-import Link from 'next/link'
 import GalleryClient from './GalleryClient'
 import { FinancingSimulator } from './FinancingSimulator'
 import { VehicleSidebarVTLX } from './VehicleSidebarVTLX'
 import { FavoritesProvider } from '../../FavoritesContext'
+import { StorefrontHeader } from '../../StorefrontHeader'
 import { StorefrontFooter } from '../../StorefrontFooter'
 import { VehicleMobileBar } from './VehicleMobileBar'
 import type { StorefrontSettings } from '@/app/admin/(protected)/storefront/StorefrontSettingsContent'
@@ -84,52 +84,25 @@ export function VehicleDetailVTLX({
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
-      {/* Header — Identical to Home */}
-      <header
-        style={{ backgroundColor: primaryColor }}
-        className="text-white shadow-md sticky top-0 z-50 transition-all duration-300"
-      >
-        <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3 min-w-0">
-            {store.logo_url && (
-              <img src={store.logo_url} alt={store.name} className="h-9 w-9 rounded-full object-cover bg-white" />
-            )}
-            <div className="min-w-0">
-              <h1 className="text-base sm:text-lg font-bold leading-tight truncate">{store.name}</h1>
-              {(store.city || store.state) && (
-                <p className="text-xs opacity-75 hidden sm:block truncate">
-                  {[store.city, store.state].filter(Boolean).join(' — ')}
-                </p>
-              )}
-            </div>
-          </div>
-          <Link
-            href="/"
-            className="inline-flex items-center gap-1.5 text-xs sm:text-sm bg-white/20 hover:bg-white/30 transition-colors px-4 py-2 rounded-full font-medium"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-3.5 h-3.5">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" />
-            </svg>
-            <span className="hidden sm:inline">Voltar para a vitrine</span>
-            <span className="sm:hidden">Voltar</span>
-          </Link>
-        </div>
-      </header>
+      <StorefrontHeader
+        store={store}
+        whatsappPhone={whatsappPhone}
+        primaryColor={primaryColor}
+        sf={{ ...sf, layout_theme: 'vtlx' }}
+        backHref={`/storefront/${slug}`}
+      />
 
       {/* Main */}
       <main className="flex-grow max-w-6xl mx-auto px-4 py-8">
         {/* Title + badges */}
         <div className="mb-8">
-          <div className="flex flex-wrap gap-2 mb-3">
-            {vehicle.price_negotiable && (
+          {vehicle.price_negotiable && (
+            <div className="flex flex-wrap gap-2 mb-3">
               <span className="text-[10px] uppercase tracking-wider font-bold px-2 py-1 rounded bg-amber-100 text-amber-700">
                 Negociável
               </span>
-            )}
-            <span className="text-[10px] uppercase tracking-wider font-bold px-2 py-1 rounded bg-slate-900 text-white">
-              VTLX CHOICE
-            </span>
-          </div>
+            </div>
+          )}
           <h1 className="text-3xl sm:text-4xl font-extrabold text-slate-900 leading-tight tracking-tight">
             {vehicle.brand} <span className="text-slate-700 font-bold">{vehicle.model}</span>
           </h1>

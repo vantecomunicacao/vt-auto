@@ -54,7 +54,7 @@ jest.mock('../vehicles', () => ({
 }))
 
 // Mock OpenAI configurável por teste
-let openaiCreateMock = jest.fn()
+const openaiCreateMock = jest.fn()
 
 jest.mock('openai', () => ({
   __esModule: true,

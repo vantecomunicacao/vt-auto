@@ -42,7 +42,7 @@ export async function requireRole(role: 'owner' | 'seller') {
   }
 
   if (payload.role !== role) {
-    redirect('/dashboard')
+    redirect('/admin/dashboard')
   }
 
   return { user, payload }

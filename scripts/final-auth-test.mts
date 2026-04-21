@@ -84,8 +84,8 @@ async function runTest() {
       console.log('✅ O LOGIN FUNCIONOU NO SCRIPT!')
       console.log('Token (final):', loginData.session?.access_token.substring(0, 15) + '...')
     }
-  } catch (e: any) {
-    console.error('❌ Crash inesperado no login:', e.message)
+  } catch (e: unknown) {
+    console.error('❌ Crash inesperado no login:', (e as Error).message)
   }
 }
 

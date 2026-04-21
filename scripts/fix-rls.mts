@@ -17,8 +17,6 @@ const serviceKey = env['SUPABASE_SERVICE_KEY']
 
 async function fixRLS() {
   console.log('--- OPERAÇÃO RESGATE: CORREÇÃO DE SEGURANÇA (RLS) ---')
-  const supabase = createClient(url!, serviceKey!)
-
   // 1. Corrigindo política de SELEÇÃO da tabela store_users
   console.log('1. Atualizando política de store_users...')
   const fixStoreUsersSQL = `
@@ -30,7 +28,7 @@ async function fixRLS() {
   `
   // Supabase JS doesn't have an endpoint for raw SQL by default except via RPC or the Dashboard.
   // We can use a Postgres function if it exists, but the easiest way is to let the developer run it in the SQL Editor.
-  console.error("Please run the SQL manually in Supabase SQL Editor");
+  console.error("Please run the SQL manually in Supabase SQL Editor:\n" + fixStoreUsersSQL);
 }
 
 fixRLS()

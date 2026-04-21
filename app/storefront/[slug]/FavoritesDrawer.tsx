@@ -3,16 +3,13 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useFavorites } from './FavoritesContext'
-import type { StorefrontVehicle } from './StorefrontFilters'
+import type { StorefrontVehicle } from './storefront-helpers'
+import { formatPrice } from './storefront-helpers'
 
 interface FavoritesDrawerProps {
   vehicles: StorefrontVehicle[]
   storeSlug: string
   primaryColor: string
-}
-
-function formatPrice(price: number) {
-  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(price)
 }
 
 export function FavoritesDrawer({ vehicles, storeSlug, primaryColor }: FavoritesDrawerProps) {

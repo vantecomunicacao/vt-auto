@@ -1,9 +1,10 @@
-import Link from 'next/link'
 import GalleryClient from './GalleryClient'
 import { FinancingSimulator } from './FinancingSimulator'
 import { VehicleSidebarVTClass } from './VehicleSidebarVTClass'
+import { StorefrontHeader } from '../../StorefrontHeader'
 import { StorefrontFooter } from '../../StorefrontFooter'
 import { VehicleMobileBar } from './VehicleMobileBar'
+import { themeVariants } from '../../theme-variants'
 
 const fuelLabel: Record<string, string> = {
   flex: 'Flex', gasoline: 'Gasolina', diesel: 'Diesel',
@@ -121,7 +122,7 @@ interface Props {
 
 export function VehicleDetailVTClass({
   store, vehicle, allImages, primaryColor, secondaryColor,
-  whatsappPhone, waLink, slug, showFinancingSimulator, storeSlug, sf = {},
+  whatsappPhone, waLink, showFinancingSimulator, storeSlug, sf = {},
 }: Props) {
   const specItems: { icon: React.ReactNode; label: string; value: string }[] = []
   if (vehicle.fuel) specItems.push({ icon: <IconFuel />, label: 'Combustível', value: fuelLabel[vehicle.fuel] ?? vehicle.fuel })
@@ -132,28 +133,15 @@ export function VehicleDetailVTClass({
   if (vehicle.doors) specItems.push({ icon: <IconDoors />, label: 'Portas', value: String(vehicle.doors) })
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: '#DDDDDD' }}>
+    <div className="min-h-screen" style={{ backgroundColor: themeVariants.vtclass.bg }}>
 
-      {/* Header — igual ao da vitrine */}
-      <header className="text-white shadow-md" style={{ backgroundColor: primaryColor }}>
-        <div className="max-w-6xl mx-auto px-4 py-3 sm:py-4 flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2.5">
-            {store.logo_url && (
-              <img src={store.logo_url} alt={store.name} className="h-8 w-8 sm:h-10 sm:w-10 rounded-full object-cover bg-white" />
-            )}
-            <span className="font-bold text-lg">{store.name}</span>
-          </div>
-          <Link
-            href="/"
-            className="inline-flex items-center gap-1.5 text-sm bg-white/20 hover:bg-white/30 transition-colors px-3 py-1.5 rounded-full font-medium"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" />
-            </svg>
-            Voltar para a vitrine
-          </Link>
-        </div>
-      </header>
+      <StorefrontHeader
+        store={store}
+        whatsappPhone={whatsappPhone}
+        primaryColor={primaryColor}
+        sf={{ ...sf, layout_theme: 'vtclass' }}
+        backHref={`/storefront/${storeSlug}`}
+      />
 
 
       {/* Main */}

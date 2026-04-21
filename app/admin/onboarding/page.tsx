@@ -17,7 +17,8 @@ import {
   Car,
   Loader2,
   Check,
-  X
+  X,
+  LogOut
 } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
@@ -114,10 +115,23 @@ export default function OnboardingPage() {
     { id: 6, title: 'Conclusão', icon: CheckCircle2 },
   ]
 
+  async function handleSignOut() {
+    const supabase = createClient()
+    await supabase.auth.signOut()
+    router.push('/admin/login')
+  }
+
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-6">
+    <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-6 relative">
+      <button
+        onClick={handleSignOut}
+        className="absolute top-6 right-6 flex items-center gap-2 px-3 py-2 text-sm text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors"
+      >
+        <LogOut className="w-4 h-4" />
+        Sair
+      </button>
       <div className="w-full max-w-2xl">
-        
+
         {/* Barra de Progresso */}
         <div className="mb-8 px-4 flex justify-between items-center relative">
           <div className="absolute top-1/2 left-0 w-full h-[2px] bg-slate-200 -z-10 -translate-y-1/2" />

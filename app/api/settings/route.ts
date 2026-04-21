@@ -53,6 +53,7 @@ export async function PATCH(request: NextRequest) {
   const allowed = [
     // Dados da loja
     'name', 'phone', 'landline', 'city', 'state', 'email', 'primary_color', 'secondary_color', 'logo_url', 'slug', 'custom_domain',
+    'description', 'address',
     // Agente IA — personalidade e comportamento
     'agent_active', 'agent_name', 'agent_tone', 'agent_prompt', 'openai_api_key', 'openai_model',
     'agent_context_window', 'agent_debounce_seconds', 'agent_cooldown_minutes', 'notification_phone',

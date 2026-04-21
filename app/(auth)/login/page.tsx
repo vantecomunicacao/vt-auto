@@ -49,7 +49,7 @@ export default function LoginPage() {
       // O middleware cuidará do redirecionamento para o subdomínio correto
       // Forçamos um refresh para garantir que a sessão seja lida pelo middleware em todas as abas
       router.refresh()
-      router.push('/dashboard')
+      router.push('/admin/dashboard')
     } catch (error: any) {
       toast.error(error.message || 'Erro ao realizar login. Tente novamente.')
     } finally {

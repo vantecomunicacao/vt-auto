@@ -53,7 +53,7 @@ export async function PATCH(request: NextRequest) {
     'about_enabled', 'about_image_url',
     'show_mileage', 'show_year', 'show_fuel', 'show_transmission',
     'btn_details_style', 'btn_whatsapp_style', 'btn_details_label',
-    'financing_simulator',
+    'featured_carousel', 'financing_simulator',
     'instagram_url', 'facebook_url', 'tiktok_url', 'youtube_url',
   ]
   const safeSettings = Object.fromEntries(
@@ -61,9 +61,19 @@ export async function PATCH(request: NextRequest) {
   )
 
   const admin = createAdminClient()
+
+  // Merge com settings existentes para não apagar campos ao salvar parcialmente
+  const { data: current } = await admin
+    .from('stores')
+    .select('storefront_settings')
+    .eq('id', storeId)
+    .single()
+
+  const merged = { ...((current?.storefront_settings as Record<string, unknown>) ?? {}), ...safeSettings }
+
   const { error } = await admin
     .from('stores')
-    .update({ storefront_settings: safeSettings })
+    .update({ storefront_settings: merged })
     .eq('id', storeId)
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })

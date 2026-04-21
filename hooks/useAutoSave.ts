@@ -10,7 +10,10 @@ export function useAutoSave<T>(data: T, { onSave, debounceMs = 2000 }: Options<T
   const timer = useRef<NodeJS.Timeout | null>(null)
   const isInitialized = useRef(false)
   const onSaveRef = useRef(onSave)
-  onSaveRef.current = onSave
+  
+  useEffect(() => {
+    onSaveRef.current = onSave
+  }, [onSave])
 
   useEffect(() => {
     // Enquanto data for null (ainda carregando), não faz nada
@@ -36,6 +39,6 @@ export function useAutoSave<T>(data: T, { onSave, debounceMs = 2000 }: Options<T
     }, debounceMs)
 
     return () => { if (timer.current) clearTimeout(timer.current) }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+   
   }, [data, debounceMs])
 }

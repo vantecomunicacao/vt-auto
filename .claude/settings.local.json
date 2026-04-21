@@ -261,13 +261,34 @@
       "Bash(curl -s -H \"Authorization: Bearer 8|yOvoaWMzVNxbmAoL3x5z7wiw1EECKiF5dOG795YUfe2bf2e7\" \"http://72.60.248.166:8000/api/v1/applications\")",
       "Bash(python3 -c \"import json,sys; apps=json.load\\(sys.stdin\\); [print\\(a['uuid'], a['name']\\) for a in apps]\")",
       "Bash(curl -s -X POST -H \"Authorization: Bearer 8|yOvoaWMzVNxbmAoL3x5z7wiw1EECKiF5dOG795YUfe2bf2e7\" \"http://72.60.248.166:8000/api/v1/deploy?uuid=hos8go8o0go84cs0go0sgggw&force=false\")",
-      "Bash(curl -s -X POST -H \"Authorization: Bearer 8|yOvoaWMzVNxbmAoL3x5z7wiw1EECKiF5dOG795YUfe2bf2e7\" \"http://72.60.248.166:8000/api/v1/deploy?uuid=cgo880kwco04wwc4scso4c8o&force=false\")"
+      "Bash(curl -s -X POST -H \"Authorization: Bearer 8|yOvoaWMzVNxbmAoL3x5z7wiw1EECKiF5dOG795YUfe2bf2e7\" \"http://72.60.248.166:8000/api/v1/deploy?uuid=cgo880kwco04wwc4scso4c8o&force=false\")",
+      "Bash(claude mcp *)",
+      "Bash(gh api *)",
+      "Read(//Users/leonardobarco/**)",
+      "Bash(python3 -c \"import json; d=json.load\\(open\\('/Users/leonardobarco/.claude.json'\\)\\); print\\('has mcpServers:', 'mcpServers' in d\\); print\\('keys at root:', list\\(d.keys\\(\\)\\)[:20]\\)\")",
+      "Bash(python3 -c \"import json,sys; print\\(json.load\\(sys.stdin\\).get\\('scripts',{}\\)\\)\")",
+      "mcp__coolify__list_applications",
+      "mcp__coolify__get_infrastructure_overview",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:3000)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" \"http://localhost:3000/storefront/vante-comunicacao\")",
+      "Bash(npx supabase *)",
+      "Bash(curl -s \"http://localhost:3000/storefront/vante-comunicacao\" -o /dev/null -w \"%{http_code}\")",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" \"http://localhost:3000/login\")",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" --max-time 5 \"http://localhost:3000/login\")",
+      "Bash(curl -s --max-time 5 \"http://localhost:3000/login\")",
+      "Bash(python3 -c \"import sys,json; data=json.load\\(sys.stdin\\); [print\\(u['email'], '|', u.get\\('role',''\\), '|', u['created_at'][:10]\\) for u in data.get\\('users',[]\\)]\")",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(d.get\\('error','OK'\\) if 'error' in d else 'LOGIN OK - token received'\\)\")",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" --max-time 5 \"http://localhost:3000/dashboard\")",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" --max-time 5 \"http://localhost:3000/admin/dashboard\")",
+      "Bash(lsof -iTCP:3000 -sTCP:LISTEN)",
+      "Bash(curl -s http://localhost:3000/api/storefront-settings)"
     ],
     "defaultMode": "bypassPermissions",
     "additionalDirectories": [
       "C:\\Users\\leofb\\OneDrive\\Documentos\\Projetos Antigravity\\carro-sistema\\app\\api\\leads",
       "C:\\Users\\leofb\\OneDrive\\Documentos\\Projetos Antigravity\\carro-sistema\\app\\api\\team",
-      "C:\\Users\\leofb\\OneDrive\\Documentos\\Projetos Antigravity\\carro-sistema\\app\\api\\master\\stores"
+      "C:\\Users\\leofb\\OneDrive\\Documentos\\Projetos Antigravity\\carro-sistema\\app\\api\\master\\stores",
+      "/Users/leonardobarco/Documents/Projetos Antigravity/carro-sistema/app/storefront/[slug]"
     ]
   }
 }

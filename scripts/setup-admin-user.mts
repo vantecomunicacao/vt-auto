@@ -1,7 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
-import dotenv from 'dotenv'
 import fs from 'fs'
-import path from 'path'
 
 // Carregar variáveis do .env.local manualmente
 const envFile = fs.readFileSync('.env.local', 'utf-8')
@@ -33,14 +31,14 @@ async function setup() {
   console.log(`\n🚀 Criando usuário administrador: ${email}...`)
 
   // 1. Verificar se o usuário já existe no Auth
-  const { data: { users }, error: listError } = await supabase.auth.admin.listUsers()
+  const { data: { users } } = await supabase.auth.admin.listUsers()
   const existingUser = users?.find(u => u.email === email)
 
   let userId: string
 
   if (existingUser) {
     console.log('⚠️ Usuário já existe. Resetando senha e confirmando e-mail...')
-    const { data: updatedUser, error: updateError } = await supabase.auth.admin.updateUserById(
+    const { error: updateError } = await supabase.auth.admin.updateUserById(
       existingUser.id,
       { password, email_confirm: true }
     )

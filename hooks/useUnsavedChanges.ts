@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef } from 'react'
 
 /**
  * Detecta alterações não salvas comparando o estado atual com o salvo.
@@ -13,7 +13,10 @@ import { useEffect, useRef, useState } from 'react'
 export function useUnsavedChanges<T>(current: T, saved: T) {
   const isDirty = JSON.stringify(current) !== JSON.stringify(saved)
   const isDirtyRef = useRef(isDirty)
-  isDirtyRef.current = isDirty
+  
+  useEffect(() => {
+    isDirtyRef.current = isDirty
+  }, [isDirty])
 
   useEffect(() => {
     function handleBeforeUnload(e: BeforeUnloadEvent) {

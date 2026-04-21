@@ -25,70 +25,25 @@ test.describe('Configurações', () => {
     await expect(nomeDaLoja).toBeVisible()
   })
 
-  test('aviso de alterações não salvas aparece ao editar', async ({ page }) => {
+  test('autosave dispara e exibe toast após editar um campo', async ({ page }) => {
     await login(page)
     await page.goto('/admin/settings')
     await expect(page.locator('input').first()).toBeVisible({ timeout: 10_000 })
 
-    // Banner de não salvo NÃO deve estar visível inicialmente
-    const banner = page.getByText('Você tem alterações não salvas')
-    await expect(banner).toBeHidden()
-
-    // Edita o campo de cidade
-    const cidade = page.locator('label:has-text("Cidade")').locator('..').locator('input')
-    await cidade.fill('Cidade Teste')
-
-    // Banner deve aparecer
-    await expect(banner).toBeVisible({ timeout: 5_000 })
-  })
-
-  test('salvar configurações da loja via API', async ({ page }) => {
-    await login(page)
-
-    // Busca o nome atual da loja
-    const res = await page.request.get('/api/settings')
-    const { store } = await res.json()
-    const nomeOriginal = store.name || 'Loja Teste'
-
-    // Salva com PATCH direto
-    const [patchRes] = await Promise.all([
-      page.request.patch('/api/settings', {
-        data: { name: nomeOriginal }, // mantém o mesmo nome
-      }),
-    ])
-
-    expect(patchRes.status()).toBe(200)
-
-    // Verifica que os dados retornam corretos
-    const check = await page.request.get('/api/settings')
-    const { store: after } = await check.json()
-    expect(after.name).toBe(nomeOriginal)
-  })
-
-  test('aviso de não salvo some após salvar', async ({ page }) => {
-    await login(page)
-    await page.goto('/admin/settings')
-    await expect(page.locator('input').first()).toBeVisible({ timeout: 10_000 })
-
-    const banner = page.getByText('Você tem alterações não salvas')
-
-    // Faz uma edição
     const cidade = page.locator('label:has-text("Cidade")').locator('..').locator('input')
     const valorAntes = await cidade.inputValue()
-    await cidade.fill('Cidade Salva')
-    await expect(banner).toBeVisible({ timeout: 5_000 })
 
-    // Salva
-    const [res] = await Promise.all([
-      page.waitForResponse(r => r.url().includes('/api/settings') && r.request().method() === 'PATCH'),
-      page.locator('button:has-text("Salvar")').first().click(),
-    ])
+    // Configura o observador da requisição PATCH
+    const savePromise = page.waitForResponse(r => r.url().includes('/api/settings') && r.request().method() === 'PATCH', { timeout: 10_000 })
+
+    // Digita no campo
+    await cidade.fill('Cidade Autosave')
+
+    // Aguarda o disparo automático (debounce + fetch)
+    const res = await savePromise
     expect(res.status()).toBe(200)
 
-    // Banner deve sumir
-    await expect(banner).toBeHidden({ timeout: 5_000 })
-
-    // Restaura o valor original para não sujar os dados
+    // Restaura o valor original
     await page.request.patch('/api/settings', { data: { city: valorAntes } })
   })
 

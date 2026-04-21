@@ -1,5 +1,4 @@
 import { notFound } from 'next/navigation'
-import Link from 'next/link'
 import type { Metadata } from 'next'
 import { createAdminClient } from '@/lib/supabase/server'
 import GalleryClient from './GalleryClient'
@@ -7,6 +6,7 @@ import { FinancingSimulator } from './FinancingSimulator'
 import { VehicleSidebar } from './VehicleSidebar'
 import { VehicleDetailVTClass } from './VehicleDetailVTClass'
 import { VehicleDetailVTLX } from './VehicleDetailVTLX'
+import { StorefrontHeader } from '../../StorefrontHeader'
 import { StorefrontFooter } from '../../StorefrontFooter'
 import { VehicleMobileBar } from './VehicleMobileBar'
 
@@ -176,39 +176,12 @@ export default async function VehicleDetailPage({
     )
   }
 
+  const isPremium = layoutTheme === 'premium'
+  const bgColor = isPremium ? '#F5F5F0' : '#F9FAFB'
+
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header style={{ backgroundColor: primaryColor }} className="text-white shadow-md">
-        <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            {store.logo_url && (
-              <img
-                src={store.logo_url}
-                alt={`Logo ${store.name}`}
-                className="h-10 w-10 rounded-full object-cover bg-white"
-              />
-            )}
-            <span className="font-bold text-lg">{store.name}</span>
-          </div>
-          <Link
-            href="/"
-            className="inline-flex items-center gap-1.5 text-sm bg-white/20 hover:bg-white/30 transition-colors px-3 py-1.5 rounded-full font-medium"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 24 24"
-              strokeWidth={2}
-              stroke="currentColor"
-              className="w-4 h-4"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" />
-            </svg>
-            Voltar para a vitrine
-          </Link>
-        </div>
-      </header>
+    <div className="min-h-screen" style={{ backgroundColor: bgColor }}>
+      <StorefrontHeader store={store} whatsappPhone={whatsappPhone} primaryColor={primaryColor} sf={sf} backHref={`/storefront/${slug}`} />
 
       {/* Main content */}
       <main className="max-w-6xl mx-auto px-4 py-8">

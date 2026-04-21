@@ -3,7 +3,7 @@
 const mockSendMessage = jest.fn().mockResolvedValue(undefined)
 const mockSendPresenceOnce = jest.fn().mockResolvedValue(undefined)
 const mockLogStep = jest.fn().mockResolvedValue(undefined)
-let openaiCreateMock = jest.fn()
+const openaiCreateMock = jest.fn()
 
 // Sequência de resultados do supabase — cada await consome um
 let supabaseResults: Array<{ data: unknown; error: unknown }> = []

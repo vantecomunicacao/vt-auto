@@ -15,7 +15,7 @@ import { UnsavedChangesBar } from '@/components/admin/UnsavedChangesBar'
 
 export type StorefrontSettings = {
   // 1. Layout
-  layout_theme: 'padrao' | 'vtlx' | 'vtclass'
+  layout_theme: 'padrao' | 'vtlx' | 'vtclass' | 'premium'
   grid_cols: '2' | '3' | '4'
   card_style: 'shadow' | 'flat' | 'bordered'
 
@@ -55,6 +55,7 @@ export type StorefrontSettings = {
   btn_details_label: string
 
   // 9. Funcionalidades
+  featured_carousel: boolean
   financing_simulator: boolean
 
   // 10. Redes sociais
@@ -97,6 +98,7 @@ const DEFAULTS: StorefrontSettings = {
   btn_details_style: 'filled',
   btn_whatsapp_style: 'filled',
   btn_details_label: 'Ver detalhes',
+  featured_carousel: true,
   financing_simulator: true,
   instagram_url: '',
   facebook_url: '',
@@ -185,6 +187,17 @@ export function StorefrontSettingsContent({ slug, initialSettings, initialStoreD
   async function saveAbout() {
     setSaving(true)
     try {
+      const contentFields = {
+        page_title: settings.page_title,
+        page_slogan: settings.page_slogan,
+        cta_label: settings.cta_label,
+        banner_enabled: settings.banner_enabled,
+        banner_title: settings.banner_title,
+        banner_subtitle: settings.banner_subtitle,
+        banner_image_url: settings.banner_image_url,
+        about_enabled: settings.about_enabled,
+        about_image_url: settings.about_image_url,
+      }
       const [r1, r2] = await Promise.all([
         fetch('/api/settings', {
           method: 'PATCH',
@@ -194,13 +207,13 @@ export function StorefrontSettingsContent({ slug, initialSettings, initialStoreD
         fetch('/api/storefront-settings', {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ about_enabled: settings.about_enabled, about_image_url: settings.about_image_url }),
+          body: JSON.stringify(contentFields),
         }),
       ])
       if (!r1.ok || !r2.ok) throw new Error()
       setSavedStoreData(d => ({ ...d, description: storeData.description }))
-      setSavedSettings(s => ({ ...s, about_enabled: settings.about_enabled, about_image_url: settings.about_image_url }))
-      toast.success('Sobre a loja salvo!')
+      setSavedSettings(s => ({ ...s, ...contentFields }))
+      toast.success('Conteúdo salvo!')
     } catch {
       toast.error('Erro ao salvar.')
     } finally {
@@ -330,7 +343,7 @@ export function StorefrontSettingsContent({ slug, initialSettings, initialStoreD
             <div className="space-y-2">
               <Label className="text-sm font-medium text-slate-700">Modelo da vitrine</Label>
               <p className="text-xs text-muted-foreground">Escolha o estilo visual da sua loja</p>
-              <div className="grid grid-cols-3 gap-3 mt-2">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-2">
                 {/* Padrão */}
                 <button onClick={() => set('layout_theme', 'padrao')} className={`relative rounded-xl border-2 overflow-hidden text-left transition-all ${settings.layout_theme === 'padrao' ? 'border-blue-600 shadow-md' : 'border-border hover:border-slate-300'}`}>
                   {settings.layout_theme === 'padrao' && <span className="absolute top-2 right-2 z-10 w-5 h-5 bg-blue-600 rounded-full flex items-center justify-center"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="white" className="w-3 h-3"><path fillRule="evenodd" d="M16.704 4.153a.75.75 0 0 1 .143 1.052l-8 10.5a.75.75 0 0 1-1.127.075l-4.5-4.5a.75.75 0 0 1 1.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 0 1 1.05-.143Z" clipRule="evenodd"/></svg></span>}
@@ -365,21 +378,20 @@ export function StorefrontSettingsContent({ slug, initialSettings, initialStoreD
                   </div>
                   <div className="px-2 py-1.5 bg-white border-t border-gray-100"><p className="text-xs font-semibold text-slate-700">VTClass</p><p className="text-xs text-muted-foreground">Clássico, traços retos</p></div>
                 </button>
+                {/* Premium */}
+                <button onClick={() => set('layout_theme', 'premium')} className={`relative rounded-xl border-2 overflow-hidden text-left transition-all ${settings.layout_theme === 'premium' ? 'border-blue-600 shadow-md' : 'border-border hover:border-slate-300'}`}>
+                  {settings.layout_theme === 'premium' && <span className="absolute top-2 right-2 z-10 w-5 h-5 bg-blue-600 rounded-full flex items-center justify-center"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="white" className="w-3 h-3"><path fillRule="evenodd" d="M16.704 4.153a.75.75 0 0 1 .143 1.052l-8 10.5a.75.75 0 0 1-1.127.075l-4.5-4.5a.75.75 0 0 1 1.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 0 1 1.05-.143Z" clipRule="evenodd"/></svg></span>}
+                  <div className="bg-[#F5F5F0] p-2 space-y-1.5">
+                    <div className="h-2 bg-gray-800 rounded-sm w-full" />
+                    <div className="grid grid-cols-2 gap-1">
+                      {[0,1,2,3].map(i => (<div key={i} className="bg-white rounded-md overflow-hidden shadow-sm"><div className="relative h-8 bg-gray-200"><div className="absolute inset-x-0 bottom-0 h-3 bg-gradient-to-t from-black/30 to-transparent" /><div className="absolute bottom-0.5 left-1 h-1.5 bg-white rounded w-3/5" /></div><div className="p-1 space-y-0.5"><div className="h-1 bg-gray-300 rounded w-2/5" /><div className="h-1.5 bg-gray-800 rounded w-4/5" /><div className="h-3 bg-gray-800 rounded-md w-full mt-1" /></div></div>))}
+                    </div>
+                  </div>
+                  <div className="px-2 py-1.5 bg-white border-t border-gray-100"><p className="text-xs font-semibold text-slate-700">Premium</p><p className="text-xs text-muted-foreground">Sóbrio e elegante</p></div>
+                </button>
               </div>
             </div>
 
-            <div className="border-t border-border pt-4 space-y-1.5">
-              <Label className="text-sm font-medium text-slate-700">Colunas no grid</Label>
-              <p className="text-xs text-muted-foreground">Quantos carros por linha na vitrine</p>
-              <div className="flex gap-3 mt-2">
-                {(['2', '3', '4'] as const).map(col => (
-                  <button key={col} onClick={() => set('grid_cols', col)} className={`flex-1 py-3 rounded-lg border-2 text-sm font-medium transition-colors ${settings.grid_cols === col ? 'border-blue-600 bg-blue-50 text-blue-700' : 'border-border text-muted-foreground hover:border-slate-300'}`}>
-                    {col}
-                  </button>
-                ))}
-              </div>
-              <p className="text-xs text-muted-foreground mt-1">Mobile sempre exibe 2 colunas</p>
-            </div>
           </div>
           <SaveBtn onClick={saveStorefront} label="Salvar layout" />
         </TabsContent>
@@ -524,6 +536,13 @@ export function StorefrontSettingsContent({ slug, initialSettings, initialStoreD
                   <button key={val} onClick={() => set('btn_whatsapp_style', val)} className={`flex-1 py-2.5 rounded-lg border-2 text-sm font-medium transition-colors ${settings.btn_whatsapp_style === val ? 'border-blue-600 bg-blue-50 text-blue-700' : 'border-border text-muted-foreground hover:border-slate-300'}`}>{label}</button>
                 ))}
               </div>
+            </div>
+            <div className="flex items-center justify-between py-1 border-t border-border pt-4">
+              <div>
+                <Label className="text-sm text-slate-700 cursor-pointer">Carrossel de destaques</Label>
+                <p className="text-xs text-muted-foreground mt-0.5">Exibe os veículos em destaque em uma fila horizontal no topo da vitrine</p>
+              </div>
+              <Switch checked={settings.featured_carousel} onCheckedChange={v => set('featured_carousel', v)} />
             </div>
             <div className="flex items-center justify-between py-1 border-t border-border pt-4">
               <div>
