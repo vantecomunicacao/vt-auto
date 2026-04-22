@@ -49,7 +49,7 @@ export async function PATCH(request: NextRequest) {
     'layout_theme', 'grid_cols', 'card_style', 'sort_by',
     'filter_brand', 'filter_price', 'filter_fuel', 'filter_transmission',
     'page_title', 'page_slogan', 'cta_label',
-    'banner_enabled', 'banner_title', 'banner_subtitle', 'banner_image_url',
+    'banner_enabled', 'banner_title', 'banner_subtitle', 'banner_image_url', 'banner_slides',
     'about_enabled', 'about_image_url',
     'show_mileage', 'show_year', 'show_fuel', 'show_transmission',
     'btn_details_style', 'btn_whatsapp_style', 'btn_details_label',
@@ -58,7 +58,26 @@ export async function PATCH(request: NextRequest) {
   ]
   const safeSettings = Object.fromEntries(
     Object.entries(body as Record<string, unknown>).filter(([key]) => allowedKeys.includes(key))
-  )
+  ) as Record<string, unknown>
+
+  // Normaliza banner_slides: precisa ser array de { image_url, title, subtitle } strings.
+  if ('banner_slides' in safeSettings) {
+    const raw = safeSettings.banner_slides
+    if (!Array.isArray(raw)) {
+      delete safeSettings.banner_slides
+    } else {
+      safeSettings.banner_slides = raw
+        .map(item => {
+          const s = item as Record<string, unknown>
+          return {
+            image_url: typeof s?.image_url === 'string' ? s.image_url : '',
+            title: typeof s?.title === 'string' ? s.title : '',
+            subtitle: typeof s?.subtitle === 'string' ? s.subtitle : '',
+          }
+        })
+        .slice(0, 10)
+    }
+  }
 
   const admin = createAdminClient()
 

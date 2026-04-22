@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { toast } from 'sonner'
-import { Loader2, ExternalLink } from 'lucide-react'
+import { Loader2, ExternalLink, Plus, Trash2, Info } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -12,6 +12,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useUnsavedChanges } from '@/hooks/useUnsavedChanges'
 import { UnsavedChangesBar } from '@/components/admin/UnsavedChangesBar'
+
+export type BannerSlide = {
+  image_url: string
+  title: string
+  subtitle: string
+}
 
 export type StorefrontSettings = {
   // 1. Layout
@@ -38,6 +44,7 @@ export type StorefrontSettings = {
   banner_title: string
   banner_subtitle: string
   banner_image_url: string
+  banner_slides: BannerSlide[]
 
   // 6. Sobre a loja
   about_enabled: boolean
@@ -89,6 +96,11 @@ const DEFAULTS: StorefrontSettings = {
   banner_title: '',
   banner_subtitle: '',
   banner_image_url: '',
+  banner_slides: [
+    { image_url: '', title: '', subtitle: '' },
+    { image_url: '', title: '', subtitle: '' },
+    { image_url: '', title: '', subtitle: '' },
+  ],
   about_enabled: false,
   about_image_url: '',
   show_mileage: true,
@@ -120,8 +132,32 @@ interface Props {
   initialStoreData: Partial<StoreData>
 }
 
+function normalizeSlides(settings: Partial<StorefrontSettings>): BannerSlide[] {
+  const raw = Array.isArray(settings.banner_slides) ? settings.banner_slides : []
+  const cleaned = raw.map(s => ({
+    image_url: s?.image_url ?? '',
+    title: s?.title ?? '',
+    subtitle: s?.subtitle ?? '',
+  }))
+  const hasAnyContent = cleaned.some(s => s.image_url || s.title || s.subtitle)
+  const base = hasAnyContent ? cleaned : []
+
+  // Migração dos campos legados: se não havia slides preenchidos mas existe banner_image_url/title/subtitle, vira o primeiro slide.
+  if (!hasAnyContent && (settings.banner_image_url || settings.banner_title || settings.banner_subtitle)) {
+    base.push({
+      image_url: settings.banner_image_url ?? '',
+      title: settings.banner_title ?? '',
+      subtitle: settings.banner_subtitle ?? '',
+    })
+  }
+
+  // Garante ao menos 3 slots visíveis para edição
+  while (base.length < 3) base.push({ image_url: '', title: '', subtitle: '' })
+  return base
+}
+
 export function StorefrontSettingsContent({ slug, initialSettings, initialStoreData }: Props) {
-  const initSettings = { ...DEFAULTS, ...initialSettings }
+  const initSettings = { ...DEFAULTS, ...initialSettings, banner_slides: normalizeSlides(initialSettings) }
   const initStore: StoreData = { ...STORE_DEFAULTS, ...initialStoreData }
 
   const [settings, setSettings] = useState<StorefrontSettings>(initSettings)
@@ -146,6 +182,17 @@ export function StorefrontSettingsContent({ slug, initialSettings, initialStoreD
 
   function setStore<K extends keyof StoreData>(key: K, value: StoreData[K]) {
     setStoreData(s => ({ ...s, [key]: value }))
+  }
+
+  function setSlides(slides: BannerSlide[]) {
+    setSettings(s => ({ ...s, banner_slides: slides }))
+  }
+
+  function updateSlide(idx: number, patch: Partial<BannerSlide>) {
+    setSettings(s => ({
+      ...s,
+      banner_slides: s.banner_slides.map((slide, i) => (i === idx ? { ...slide, ...patch } : slide)),
+    }))
   }
 
   async function saveStorefront() {
@@ -187,14 +234,20 @@ export function StorefrontSettingsContent({ slug, initialSettings, initialStoreD
   async function saveAbout() {
     setSaving(true)
     try {
+      const filteredSlides = settings.banner_slides.filter(
+        s => s.image_url.trim() || s.title.trim() || s.subtitle.trim()
+      )
+      const firstSlide = filteredSlides[0] ?? { image_url: '', title: '', subtitle: '' }
       const contentFields = {
         page_title: settings.page_title,
         page_slogan: settings.page_slogan,
         cta_label: settings.cta_label,
         banner_enabled: settings.banner_enabled,
-        banner_title: settings.banner_title,
-        banner_subtitle: settings.banner_subtitle,
-        banner_image_url: settings.banner_image_url,
+        banner_slides: filteredSlides,
+        // Mantém os campos legados sincronizados com o primeiro slide (compatibilidade)
+        banner_title: firstSlide.title,
+        banner_subtitle: firstSlide.subtitle,
+        banner_image_url: firstSlide.image_url,
         about_enabled: settings.about_enabled,
         about_image_url: settings.about_image_url,
       }
@@ -420,25 +473,79 @@ export function StorefrontSettingsContent({ slug, initialSettings, initialStoreD
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-semibold text-slate-800">Banner</p>
-                <p className="text-xs text-muted-foreground mt-0.5">Bloco de destaque acima dos carros</p>
+                <p className="text-xs text-muted-foreground mt-0.5">Até 3+ imagens rotativas acima dos carros</p>
               </div>
               <Switch checked={settings.banner_enabled} onCheckedChange={v => set('banner_enabled', v)} />
             </div>
             {settings.banner_enabled && (
-              <>
-                <div className="space-y-1.5">
-                  <Label className="text-sm font-medium text-slate-700">Título do banner</Label>
-                  <Input value={settings.banner_title} onChange={e => set('banner_title', e.target.value)} placeholder="Ex: Novidades da semana" className="h-10" />
+              <div className="space-y-4">
+                <div className="flex gap-2.5 rounded-lg border border-blue-200 bg-blue-50 p-3 text-xs text-blue-900">
+                  <Info size={14} className="shrink-0 mt-0.5 text-blue-600" />
+                  <div className="space-y-0.5">
+                    <p className="font-semibold">Formato recomendado da imagem</p>
+                    <p className="text-blue-800">
+                      Dimensão: <strong>1920×760 px</strong> (horizontal, proporção ~2,5:1). Formato: JPG ou WebP, até <strong>500 KB</strong>.
+                    </p>
+                    <p className="text-blue-800">
+                      Deixe o foco da imagem no centro — as bordas podem ser cortadas em telas menores.
+                    </p>
+                  </div>
                 </div>
-                <div className="space-y-1.5">
-                  <Label className="text-sm font-medium text-slate-700">Subtítulo do banner</Label>
-                  <Input value={settings.banner_subtitle} onChange={e => set('banner_subtitle', e.target.value)} placeholder="Ex: Confira os veículos em destaque" className="h-10" />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-sm font-medium text-slate-700">URL da imagem de fundo</Label>
-                  <Input value={settings.banner_image_url} onChange={e => set('banner_image_url', e.target.value)} placeholder="https://..." className="h-10" />
-                </div>
-              </>
+                {settings.banner_slides.map((slide, idx) => (
+                  <div key={idx} className="rounded-lg border border-border bg-slate-50/50 p-4 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs font-semibold text-slate-600">Banner {idx + 1}</p>
+                      {settings.banner_slides.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => setSlides(settings.banner_slides.filter((_, i) => i !== idx))}
+                          className="text-xs text-red-500 hover:text-red-700 flex items-center gap-1"
+                          aria-label={`Remover banner ${idx + 1}`}
+                        >
+                          <Trash2 size={13} /> Remover
+                        </button>
+                      )}
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-medium text-slate-700">URL da imagem</Label>
+                      <Input
+                        value={slide.image_url}
+                        onChange={e => updateSlide(idx, { image_url: e.target.value })}
+                        placeholder="https://..."
+                        className="h-9 text-sm"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-medium text-slate-700">Título</Label>
+                      <Input
+                        value={slide.title}
+                        onChange={e => updateSlide(idx, { title: e.target.value })}
+                        placeholder="Ex: Novidades da semana"
+                        className="h-9 text-sm"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-medium text-slate-700">Subtítulo</Label>
+                      <Input
+                        value={slide.subtitle}
+                        onChange={e => updateSlide(idx, { subtitle: e.target.value })}
+                        placeholder="Ex: Confira os veículos em destaque"
+                        className="h-9 text-sm"
+                      />
+                    </div>
+                  </div>
+                ))}
+                <button
+                  type="button"
+                  onClick={() => setSlides([...settings.banner_slides, { image_url: '', title: '', subtitle: '' }])}
+                  className="w-full h-10 rounded-lg border border-dashed border-border text-sm text-slate-600 hover:bg-slate-50 flex items-center justify-center gap-2"
+                >
+                  <Plus size={14} /> Adicionar banner
+                </button>
+                <p className="text-xs text-muted-foreground">
+                  Banners com pelo menos a imagem <strong>ou</strong> o título preenchido serão exibidos em rotação (a cada 6s).
+                </p>
+              </div>
             )}
           </div>
 

@@ -61,10 +61,10 @@ export function StorefrontHeader({ store, whatsappPhone, primaryColor, sf, backH
           </div>
         </div>
         {/* Main header */}
-        <div className="max-w-6xl mx-auto px-4 py-4 sm:py-5 flex items-center justify-between gap-4">
+        <div className="max-w-6xl mx-auto px-4 py-2.5 sm:py-3 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3 min-w-0">
             {store.logo_url && (
-              <img src={store.logo_url} alt={`Logo ${store.name}`} className="h-10 sm:h-14 w-auto object-contain flex-shrink-0" />
+              <img src={store.logo_url} alt={`Logo ${store.name}`} className="h-9 sm:h-11 w-auto object-contain flex-shrink-0" />
             )}
             <div className="min-w-0 hidden sm:block">
               <h1 className="text-lg font-bold text-gray-900 leading-tight tracking-tight truncate">{store.name}</h1>

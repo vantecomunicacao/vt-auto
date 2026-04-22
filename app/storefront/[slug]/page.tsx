@@ -5,6 +5,7 @@ import type { StorefrontSettings } from '@/app/admin/(protected)/storefront/Stor
 import { StorefrontContent } from './StorefrontContent'
 import { StorefrontHeader } from './StorefrontHeader'
 import { StorefrontFooter } from './StorefrontFooter'
+import { StorefrontBanner, type BannerSlide } from './StorefrontBanner'
 import { BackToTop } from './BackToTop'
 import { WhatsAppFAB } from './WhatsAppFAB'
 
@@ -67,6 +68,7 @@ export default async function StorefrontPage({
     banner_title: '',
     banner_subtitle: '',
     banner_image_url: '',
+    banner_slides: [],
     about_enabled: false,
     about_image_url: '',
     show_mileage: true,
@@ -116,41 +118,24 @@ export default async function StorefrontPage({
   const isPremium = sf.layout_theme === 'premium'
   const bgColor = sf.layout_theme === 'vtclass' ? '#DDDDDD' : isPremium ? '#F5F5F0' : '#F9FAFB'
 
+  // Slides do banner: usa banner_slides se houver conteúdo; caso contrário, cai nos campos legados.
+  const rawSlides: BannerSlide[] = Array.isArray(sf.banner_slides) ? sf.banner_slides : []
+  const cleanedSlides = rawSlides
+    .map(s => ({ image_url: s?.image_url ?? '', title: s?.title ?? '', subtitle: s?.subtitle ?? '' }))
+    .filter(s => s.image_url || s.title || s.subtitle)
+  const bannerSlides: BannerSlide[] = cleanedSlides.length > 0
+    ? cleanedSlides
+    : (sf.banner_image_url || sf.banner_title || sf.banner_subtitle)
+      ? [{ image_url: sf.banner_image_url, title: sf.banner_title, subtitle: sf.banner_subtitle }]
+      : []
+
   return (
     <div className="min-h-screen" style={{ backgroundColor: bgColor }}>
       <StorefrontHeader store={store} whatsappPhone={whatsappPhone} primaryColor={primaryColor} sf={sf} />
 
       {/* Banner */}
-      {sf.banner_enabled && (sf.banner_title || sf.banner_image_url) && (
-        isPremium ? (
-          <div
-            className="relative text-white"
-            style={{
-              background: sf.banner_image_url
-                ? `linear-gradient(135deg, rgba(0,0,0,0.6), rgba(0,0,0,0.3)), url(${sf.banner_image_url}) center/cover no-repeat`
-                : `linear-gradient(135deg, ${primaryColor}, ${primaryColor}CC)`,
-            }}
-          >
-            <div className="max-w-6xl mx-auto px-4 py-10 sm:py-20">
-              {sf.banner_title && <h2 className="text-2xl sm:text-4xl font-bold mb-2 sm:mb-3 max-w-xl leading-tight">{sf.banner_title}</h2>}
-              {sf.banner_subtitle && <p className="text-sm sm:text-lg opacity-90 max-w-lg">{sf.banner_subtitle}</p>}
-            </div>
-          </div>
-        ) : (
-          <div
-            className="relative text-white"
-            style={{
-              background: sf.banner_image_url
-                ? `linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.5)), url(${sf.banner_image_url}) center/cover no-repeat`
-                : primaryColor,
-            }}
-          >
-            <div className="max-w-6xl mx-auto px-4 py-6 sm:py-12 text-center">
-              {sf.banner_title && <h2 className="text-xl sm:text-3xl font-bold mb-1 sm:mb-2">{sf.banner_title}</h2>}
-              {sf.banner_subtitle && <p className="text-sm sm:text-lg opacity-90">{sf.banner_subtitle}</p>}
-            </div>
-          </div>
-        )
+      {sf.banner_enabled && bannerSlides.length > 0 && (
+        <StorefrontBanner slides={bannerSlides} isPremium={isPremium} primaryColor={primaryColor} />
       )}
 
       {/* Description / slogan */}
