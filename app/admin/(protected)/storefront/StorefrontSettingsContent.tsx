@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useUnsavedChanges } from '@/hooks/useUnsavedChanges'
 import { UnsavedChangesBar } from '@/components/admin/UnsavedChangesBar'
+import { ImageUploadField } from '@/components/admin/ImageUploadField'
 
 export type BannerSlide = {
   image_url: string
@@ -76,6 +77,7 @@ export type StoreData = {
   primary_color: string
   secondary_color: string
   logo_url: string
+  favicon_url: string
   description: string
   address: string
 }
@@ -122,6 +124,7 @@ const STORE_DEFAULTS: StoreData = {
   primary_color: '#2563EB',
   secondary_color: '#1E40AF',
   logo_url: '',
+  favicon_url: '',
   description: '',
   address: '',
 }
@@ -382,9 +385,29 @@ export function StorefrontSettingsContent({ slug, initialSettings, initialStoreD
               </div>
             </div>
             <div className="space-y-1.5">
-              <Label className="text-sm font-medium text-slate-700">URL do logotipo</Label>
-              <Input value={storeData.logo_url} onChange={e => setStore('logo_url', e.target.value)} placeholder="https://..." className="h-10" />
-              <p className="text-xs text-muted-foreground">Link direto para a imagem do logo (PNG ou SVG com fundo transparente)</p>
+              <Label className="text-sm font-medium text-slate-700">Logotipo</Label>
+              <ImageUploadField
+                value={storeData.logo_url}
+                onChange={url => setStore('logo_url', url ?? '')}
+                kind="logo"
+                placeholder="Enviar logotipo"
+                previewClassName="h-32"
+              />
+              <p className="text-xs text-muted-foreground">PNG com fundo transparente funciona melhor. A imagem é comprimida e hospedada automaticamente.</p>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-sm font-medium text-slate-700">Favicon</Label>
+              <div className="w-32">
+                <ImageUploadField
+                  value={storeData.favicon_url}
+                  onChange={url => setStore('favicon_url', url ?? '')}
+                  kind="favicon"
+                  placeholder="Enviar favicon"
+                  aspect="1/1"
+                  skipCompression
+                />
+              </div>
+              <p className="text-xs text-muted-foreground">Ícone que aparece na aba do navegador. PNG quadrado de 32×32 ou 64×64 pixels, ou arquivo .ico.</p>
             </div>
           </div>
           <SaveBtn onClick={saveStoreData} label="Salvar identidade" />
@@ -507,12 +530,14 @@ export function StorefrontSettingsContent({ slug, initialSettings, initialStoreD
                       )}
                     </div>
                     <div className="space-y-1.5">
-                      <Label className="text-xs font-medium text-slate-700">URL da imagem</Label>
-                      <Input
+                      <Label className="text-xs font-medium text-slate-700">Imagem</Label>
+                      <ImageUploadField
                         value={slide.image_url}
-                        onChange={e => updateSlide(idx, { image_url: e.target.value })}
-                        placeholder="https://..."
-                        className="h-9 text-sm"
+                        onChange={url => updateSlide(idx, { image_url: url ?? '' })}
+                        kind="banner"
+                        placeholder="Enviar imagem do banner"
+                        aspect="5/2"
+                        objectFit="cover"
                       />
                     </div>
                     <div className="space-y-1.5">

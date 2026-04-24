@@ -1,4 +1,5 @@
 import { notFound } from 'next/navigation'
+import { headers } from 'next/headers'
 import type { Metadata } from 'next'
 import { createAdminClient } from '@/lib/supabase/server'
 import GalleryClient from './GalleryClient'
@@ -42,7 +43,7 @@ export async function generateMetadata({
   const { slug, vehicleSlug } = await params
   const adminClient = createAdminClient()
 
-  const { data: store } = await adminClient.from('stores').select('id,name').eq('slug', slug).single()
+  const { data: store } = await adminClient.from('stores').select('id,name,favicon_url').eq('slug', slug).single()
   if (!store) return {}
 
   const { data: vehicle } = await adminClient
@@ -61,6 +62,7 @@ export async function generateMetadata({
   return {
     title,
     description,
+    icons: store.favicon_url ? { icon: store.favicon_url } : undefined,
     openGraph: {
       title,
       description,
@@ -141,6 +143,13 @@ export default async function VehicleDetailPage({
   const primaryColor = store.primary_color ?? '#1e40af'
   const layoutTheme = (store.storefront_settings as Record<string, unknown>)?.layout_theme ?? 'padrao'
 
+  // Em produção, a vitrine é servida via subdomínio ({slug}.dominio) e o proxy
+  // reescreve '/' → '/storefront/{slug}'. Nesses casos, voltar para a vitrine é
+  // navegar para '/'. Quando acessada direto em '/storefront/{slug}/...' (dev),
+  // o header x-store-slug não existe — aí o backHref precisa do caminho completo.
+  const hdrs = await headers()
+  const backHref = hdrs.get('x-store-slug') ? '/' : `/storefront/${slug}`
+
   if (layoutTheme === 'vtclass') {
     return (
       <VehicleDetailVTClass
@@ -155,6 +164,7 @@ export default async function VehicleDetailPage({
         storeSlug={slug}
         showFinancingSimulator={showFinancingSimulator}
         sf={sf}
+        backHref={backHref}
       />
     )
   }
@@ -172,6 +182,7 @@ export default async function VehicleDetailPage({
         slug={slug}
         showFinancingSimulator={showFinancingSimulator}
         sf={sf}
+        backHref={backHref}
       />
     )
   }
@@ -181,7 +192,7 @@ export default async function VehicleDetailPage({
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: bgColor }}>
-      <StorefrontHeader store={store} whatsappPhone={whatsappPhone} primaryColor={primaryColor} sf={sf} backHref={`/storefront/${slug}`} />
+      <StorefrontHeader store={store} whatsappPhone={whatsappPhone} primaryColor={primaryColor} sf={sf} backHref={backHref} />
 
       {/* Main content */}
       <main className="max-w-6xl mx-auto px-4 py-8">

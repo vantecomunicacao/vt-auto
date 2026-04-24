@@ -19,7 +19,7 @@ export default async function StorefrontSettingsPage() {
 
   const { data: store } = await admin
     .from('stores')
-    .select('slug, storefront_settings, primary_color, secondary_color, logo_url, description, address')
+    .select('slug, storefront_settings, primary_color, secondary_color, logo_url, favicon_url, description, address')
     .eq('id', storeUser.store_id)
     .single()
 
@@ -32,6 +32,7 @@ export default async function StorefrontSettingsPage() {
           primary_color: store?.primary_color ?? '',
           secondary_color: store?.secondary_color ?? '',
           logo_url: store?.logo_url ?? '',
+          favicon_url: store?.favicon_url ?? '',
           description: store?.description ?? '',
           address: store?.address ?? '',
         }}

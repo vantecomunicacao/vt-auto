@@ -116,13 +116,14 @@ interface Props {
   slug: string
   showFinancingSimulator: boolean
   storeSlug: string
+  backHref: string
 }
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export function VehicleDetailVTClass({
   store, vehicle, allImages, primaryColor, secondaryColor,
-  whatsappPhone, waLink, showFinancingSimulator, storeSlug, sf = {},
+  whatsappPhone, waLink, showFinancingSimulator, storeSlug, sf = {}, backHref,
 }: Props) {
   const specItems: { icon: React.ReactNode; label: string; value: string }[] = []
   if (vehicle.fuel) specItems.push({ icon: <IconFuel />, label: 'Combustível', value: fuelLabel[vehicle.fuel] ?? vehicle.fuel })
@@ -140,7 +141,7 @@ export function VehicleDetailVTClass({
         whatsappPhone={whatsappPhone}
         primaryColor={primaryColor}
         sf={{ ...sf, layout_theme: 'vtclass' }}
-        backHref={`/storefront/${storeSlug}`}
+        backHref={backHref}
       />
 
 

@@ -16,7 +16,7 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { slug } = await params
   const adminClient = createAdminClient()
-  const { data: store } = await adminClient.from('stores').select('name,logo_url,city,state').eq('slug', slug).single()
+  const { data: store } = await adminClient.from('stores').select('name,logo_url,favicon_url,city,state').eq('slug', slug).single()
   if (!store) return {}
 
   const title = store.name
@@ -25,6 +25,7 @@ export async function generateMetadata({
   return {
     title,
     description: description || undefined,
+    icons: store.favicon_url ? { icon: store.favicon_url } : undefined,
     openGraph: {
       title,
       description: description || undefined,

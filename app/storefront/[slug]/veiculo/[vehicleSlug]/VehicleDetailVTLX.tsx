@@ -63,11 +63,12 @@ interface Props {
   slug: string
   showFinancingSimulator: boolean
   sf: StorefrontSettings
+  backHref: string
 }
 
 export function VehicleDetailVTLX({
   store, vehicle, allImages, primaryColor, secondaryColor,
-  whatsappPhone, waLink, slug, showFinancingSimulator, sf,
+  whatsappPhone, waLink, slug, showFinancingSimulator, sf, backHref,
 }: Props) {
   const specs: { label: string; value: string }[] = []
   if (vehicle.year_model) specs.push({ label: 'Ano modelo', value: String(vehicle.year_model) })
@@ -89,7 +90,7 @@ export function VehicleDetailVTLX({
         whatsappPhone={whatsappPhone}
         primaryColor={primaryColor}
         sf={{ ...sf, layout_theme: 'vtlx' }}
-        backHref={`/storefront/${slug}`}
+        backHref={backHref}
       />
 
       {/* Main */}
