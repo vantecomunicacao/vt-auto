@@ -34,7 +34,6 @@ export default async function EditVehiclePage({ params }: { params: Promise<{ id
       <div className="max-w-3xl">
         <div className="bg-card border border-border rounded-xl p-6 shadow-sm">
           <VehicleForm
-            storeId={storeUser.store_id}
             vehicleId={v.id}
             defaultValues={{
               brand: v.brand, model: v.model, version: v.version ?? undefined,

@@ -126,7 +126,12 @@ export default async function VehiclesPage() {
 
                   {/* Ações */}
                   <td className="px-4 py-3 text-right">
-                    <VehicleActionsMenu vehicleId={v.id} currentStatus={v.status} isOwner={isOwner} />
+                    <VehicleActionsMenu
+                      vehicleId={v.id}
+                      vehicleLabel={`${v.brand} ${v.model}${v.version ? ` ${v.version}` : ''}`}
+                      currentStatus={v.status}
+                      isOwner={isOwner}
+                    />
                   </td>
                 </tr>
               ))}

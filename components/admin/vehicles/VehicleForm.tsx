@@ -21,7 +21,6 @@ import {
 import type { Vehicle } from '@/lib/supabase/types'
 
 interface VehicleFormProps {
-  storeId: string
   vehicleId?: string        // se preenchido, é edição
   defaultValues?: Partial<VehicleFormData>
   initialPhotos?: { id: string; url: string; storage_path: string; is_cover: boolean; sort_order: number }[]
@@ -33,7 +32,7 @@ const TAB_FIELDS: Record<string, (keyof VehicleFormData)[]> = {
   preco:     ['price'],
 }
 
-export function VehicleForm({ storeId, vehicleId, defaultValues, initialPhotos = [] }: VehicleFormProps) {
+export function VehicleForm({ vehicleId, defaultValues, initialPhotos = [] }: VehicleFormProps) {
   const router = useRouter()
   const [saving, setSaving] = useState(false)
   const [savedVehicleId, setSavedVehicleId] = useState<string | null>(vehicleId || null)
@@ -76,10 +75,18 @@ export function VehicleForm({ storeId, vehicleId, defaultValues, initialPhotos =
     }
 
     const result = await res.json()
-    if (!savedVehicleId) setSavedVehicleId(result.id)
+    const isCreate = !savedVehicleId
+    if (isCreate) setSavedVehicleId(result.id)
 
-    toast.success(savedVehicleId ? 'Veículo atualizado!' : 'Veículo criado!')
-    router.push('/admin/vehicles')
+    setSaving(false)
+
+    if (isCreate) {
+      toast.success('Veículo criado! Agora adicione as fotos.')
+      setActiveTab('fotos')
+    } else {
+      toast.success('Veículo atualizado!')
+      router.push('/admin/vehicles')
+    }
   }
 
   function tabHasError(tab: string) {
@@ -104,6 +111,7 @@ export function VehicleForm({ storeId, vehicleId, defaultValues, initialPhotos =
         brand: 'Marca', model: 'Modelo', year_model: 'Ano modelo',
         year_manuf: 'Ano fabricação', color: 'Cor', fuel: 'Combustível',
         transmission: 'Câmbio', mileage: 'Quilometragem', price: 'Preço',
+        price_old: 'Preço anterior', seats: 'Passageiros', doors: 'Portas',
       }[f] ?? f)).filter(Boolean)
       toast.error(`Preencha os campos obrigatórios: ${missing.join(', ')}`)
     })}>
@@ -269,7 +277,7 @@ export function VehicleForm({ storeId, vehicleId, defaultValues, initialPhotos =
             <Field label="Preço anterior (riscado)">
               <div className="relative">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">R$</span>
-                <Input {...register('price_old', { valueAsNumber: true })} type="number" placeholder="95000" className="h-10 pl-9" />
+                <Input {...register('price_old', { setValueAs: v => v === '' ? undefined : Number(v) })} type="number" placeholder="95000" className="h-10 pl-9" />
               </div>
             </Field>
           </div>
@@ -341,7 +349,6 @@ export function VehicleForm({ storeId, vehicleId, defaultValues, initialPhotos =
           {savedVehicleId ? (
             <PhotoUpload
               vehicleId={savedVehicleId}
-              storeId={storeId}
               initialPhotos={initialPhotos}
             />
           ) : (
