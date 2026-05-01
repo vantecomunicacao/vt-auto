@@ -61,9 +61,9 @@ function LoginForm() {
         {/* Logo */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-11 h-11 rounded-xl mb-4" style={{ background: 'var(--ds-primary-600)' }}>
-            <span className="text-white font-semibold text-base">A</span>
+            <span className="text-white font-semibold text-base">C</span>
           </div>
-          <h1 className="text-2xl font-semibold text-foreground">AutoAgente</h1>
+          <h1 className="text-2xl font-semibold text-foreground">CarGrow</h1>
           <p className="text-muted-foreground mt-1 text-sm">Acesse o painel da sua loja</p>
         </div>
 
@@ -129,7 +129,7 @@ function LoginForm() {
         </div>
 
         <p className="text-center text-xs text-muted-foreground mt-6">
-          AutoAgente © {new Date().getFullYear()}
+          CarGrow © {new Date().getFullYear()}
         </p>
       </div>
     </div>

@@ -1,7 +1,7 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
-export async function proxy(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
   const hostname = request.headers.get('host') || ''
   const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || 'localhost:3000'
@@ -60,7 +60,7 @@ export async function proxy(request: NextRequest) {
       return await updateSession(request, NextResponse.next())
     }
 
-    // [slug].autoagente.com.br → /storefront/[slug]/...
+    // [slug].cargrow.com.br → /storefront/[slug]/...
     const url = request.nextUrl.clone()
     url.pathname = `/storefront/${subdomain}${pathname}`
     const response = NextResponse.rewrite(url)
@@ -68,7 +68,19 @@ export async function proxy(request: NextRequest) {
     return response
   }
 
-  // Domínio principal — atualiza sessão normalmente
+  // Domínio principal
+  if (!isSubdomain) {
+    // Se tentar acessar rotas de login ou admin na raiz, redireciona para o app
+    if (pathname.startsWith('/master')) {
+      return NextResponse.redirect(new URL(pathname, `https://master.${rootDomain}`))
+    }
+    if (pathname.startsWith('/login') || pathname.startsWith('/admin')) {
+      return NextResponse.redirect(new URL(pathname, `https://app.${rootDomain}`))
+    }
+    // Caso contrário, serve a Landing Page normalmente
+    return await updateSession(request, NextResponse.next())
+  }
+
   return await updateSession(request, NextResponse.next())
 }
 

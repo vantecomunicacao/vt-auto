@@ -19,7 +19,7 @@ export default function AuthLayout({
           <div className="w-10 h-10 bg-ds-primary-600 rounded-xl flex items-center justify-center shadow-lg shadow-ds-primary-600/20">
             <Car className="w-6 h-6 text-white" />
           </div>
-          <span className="text-2xl font-bold tracking-tight">AutoAgente</span>
+          <span className="text-2xl font-bold tracking-tight">CarGrow</span>
         </Link>
 
         <div className="space-y-6 relative z-10">
@@ -56,7 +56,7 @@ export default function AuthLayout({
         <div className="absolute top-8 left-8 lg:hidden">
           <Link href="/" className="flex items-center gap-2">
             <Car className="w-6 h-6 text-ds-primary-600" />
-            <span className="text-xl font-bold tracking-tight text-foreground">AutoAgente</span>
+            <span className="text-xl font-bold tracking-tight text-foreground">CarGrow</span>
           </Link>
         </div>
 

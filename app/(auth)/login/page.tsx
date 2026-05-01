@@ -62,7 +62,7 @@ export default function LoginPage() {
       <CardHeader className="p-0 mb-8">
         <CardTitle className="text-3xl font-extrabold tracking-tight">Acesse sua conta</CardTitle>
         <CardDescription className="text-lg mt-2 font-medium text-slate-500">
-          Bem-vindo de volta ao sistema de gestão do <span className="text-ds-primary-600">AutoAgente</span>.
+          Bem-vindo de volta ao sistema de gestão do <span className="text-ds-primary-600">CarGrow</span>.
         </CardDescription>
       </CardHeader>
 
@@ -137,7 +137,7 @@ export default function LoginPage() {
       <CardFooter className="p-0 mt-8 block">
         <div className="p-4 rounded-xl bg-slate-50 border border-slate-100">
           <p className="text-xs text-slate-500 text-center leading-relaxed">
-            Não tem uma conta? Fale com o seu gerente <span className="font-bold text-slate-700">AutoAgente</span> para receber seu convite por e-mail.
+            Não tem uma conta? Fale com o seu gerente <span className="font-bold text-slate-700">CarGrow</span> para receber seu convite por e-mail.
           </p>
         </div>
       </CardFooter>

@@ -158,14 +158,14 @@ export function SettingsContent() {
                 className="h-10"
               />
               <p className="text-xs text-muted-foreground">
-                Aponte um registro CNAME do seu domínio para <code className="bg-slate-100 px-1 py-0.5 rounded text-xs">cname.autoagente.com.br</code>
+                Aponte um registro CNAME do seu domínio para <code className="bg-slate-100 px-1 py-0.5 rounded text-xs">cname.cargrow.com.br</code>
               </p>
             </div>
             <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
               <p className="text-xs text-amber-700 font-medium mb-1">Instrução DNS</p>
               <p className="text-xs text-amber-600">
                 No painel do seu provedor de domínio, crie um registro:<br />
-                Tipo: <strong>CNAME</strong> · Nome: <strong>www</strong> · Valor: <strong>cname.autoagente.com.br</strong>
+                Tipo: <strong>CNAME</strong> · Nome: <strong>www</strong> · Valor: <strong>cname.cargrow.com.br</strong>
               </p>
             </div>
           </div>

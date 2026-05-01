@@ -60,7 +60,7 @@ export default async function MasterDashboardPage() {
     <div className="p-8 max-w-6xl mx-auto">
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-        <p className="text-gray-500 text-sm mt-1">Visão geral do SaaS AutoAgente</p>
+        <p className="text-gray-500 text-sm mt-1">Visão geral do SaaS CarGrow</p>
       </div>
 
       {/* Metric Cards */}

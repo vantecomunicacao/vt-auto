@@ -158,7 +158,7 @@ export default function OnboardingPage() {
                 <Car className="w-10 h-10 text-ds-primary-600" />
               </div>
               <div className="space-y-2">
-                <h1 className="text-3xl font-extrabold tracking-tight">Seja bem-vindo ao AutoAgente!</h1>
+                <h1 className="text-3xl font-extrabold tracking-tight">Seja bem-vindo ao CarGrow!</h1>
                 <p className="text-slate-500 text-lg">Vamos configurar seu portal de revenda em menos de 2 minutos.</p>
               </div>
               <Button onClick={nextStep} size="lg" className="px-10 h-14 text-lg font-bold">
@@ -337,7 +337,7 @@ export default function OnboardingPage() {
                       onChange={(e) => setData({ ...data, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '') })}
                     />
                     <div className="absolute inset-y-0 right-0 flex items-center pr-4 pointer-events-none">
-                      <span className="text-slate-400 font-semibold">.autoagente.com.br</span>
+                      <span className="text-slate-400 font-semibold">.cargrow.com.br</span>
                     </div>
                   </div>
                   <div className="flex items-center gap-2 px-2">
@@ -391,7 +391,7 @@ export default function OnboardingPage() {
               </div>
               <div className="w-full bg-slate-50 p-6 rounded-2xl border border-slate-100 flex flex-col gap-2">
                 <span className="text-xs text-slate-400 font-bold uppercase tracking-wider">Sua Vitrine Pública:</span>
-                <span className="text-lg font-bold text-ds-primary-600">{data.slug}.autoagente.com.br</span>
+                <span className="text-lg font-bold text-ds-primary-600">{data.slug}.cargrow.com.br</span>
               </div>
               <Button 
                 onClick={handleComplete} 

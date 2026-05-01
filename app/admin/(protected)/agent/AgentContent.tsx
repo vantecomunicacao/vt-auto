@@ -27,7 +27,7 @@ export function AgentContent({ storeId, followUpEnabled, followUpConfig, agentHo
   const [loading, setLoading] = useState(true)
   const [showKey, setShowKey] = useState(false)
   const [msgSizeMode, setMsgSizeMode] = useState<'small' | 'medium' | 'large' | 'custom'>('medium')
-  const DEFAULT_PROMPT = `Você é um assistente virtual especializado na venda de carros da **VT Autos Exemplo**
+  const DEFAULT_PROMPT = `Você é um assistente virtual especializado na venda de carros da **Autos Exemplo**
 Seu objetivo é pré qualificar o lead que chega com interesse em comprar um veiculo.
 
 ## Modo WhatsApp:
@@ -36,7 +36,7 @@ Seja leve, prático e direto. Sem parágrafos longos.
 
 
 # Objetivo
-Seu papel é fazer o **pré-atendimento** dos leads que chegam via WhatsApp, fornecendo informações sobre a VT Autos  **qualificando potenciais clientes** antes de transferir para o atendimento humano.
+Seu papel é fazer o **pré-atendimento** dos leads que chegam via WhatsApp, fornecendo informações sobre a Autos Exemplo  **qualificando potenciais clientes** antes de transferir para o atendimento humano.
 - Evite respostas secas
 
 
@@ -107,7 +107,7 @@ E, se ele quiser, **transfira imediatamente para um humano**, finalizando o aten
 
   const FORM_DEFAULTS = {
     agent_active: false,
-    agent_name: 'AutoAgente',
+    agent_name: 'CarGrow',
     agent_tone: 'professional',
     agent_prompt: '',
     openai_api_key: '',
@@ -137,7 +137,7 @@ E, se ele quiser, **transfira imediatamente para um humano**, finalizando o aten
             setMsgSizeMode(mode as 'small' | 'medium' | 'large' | 'custom')
             const loaded = {
               agent_active: store.agent_active ?? false,
-              agent_name: store.agent_name ?? 'AutoAgente',
+              agent_name: store.agent_name ?? 'CarGrow',
               agent_tone: store.agent_tone ?? 'professional',
               agent_prompt: store.agent_prompt || '',
               openai_api_key: store.openai_api_key || '',
@@ -252,7 +252,7 @@ E, se ele quiser, **transfira imediatamente para um humano**, finalizando o aten
                 <Label className="text-sm font-medium text-slate-700">Nome do agente</Label>
                 <Input value={form.agent_name}
                   onChange={e => setForm(f => ({ ...f, agent_name: e.target.value }))}
-                  className="h-10" placeholder="AutoAgente" autoComplete="off" />
+                  className="h-10" placeholder="CarGrow" autoComplete="off" />
               </div>
               <div className="space-y-1.5">
                 <Label className="text-sm font-medium text-slate-700">Tom de voz</Label>

@@ -325,7 +325,7 @@ export function DocsContent() {
       {/* Configurações */}
       <Section icon={Settings} title="Configurações disponíveis" color="#475569">
         <div className="space-y-0">
-          <ConfigItem name="Nome do agente" description="Como o agente se identifica nas conversas." example="AutoAgente, Sofia, Carlos" />
+          <ConfigItem name="Nome do agente" description="Como o agente se identifica nas conversas." example="CarGrow, Sofia, Carlos" />
           <ConfigItem name="Tom de voz" description="Estilo de escrita do agente: Profissional, Amigável ou Casual." />
           <ConfigItem name="Instruções do agente" description="Prompt base com regras de comportamento: o que pode responder, como abordar clientes, limites da conversa." />
           <ConfigItem name="Instrução para imagens" description="O que o agente deve fazer quando receber uma foto do cliente." example="Identifique se é um veículo e diga que podemos ajudar." />

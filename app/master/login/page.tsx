@@ -66,7 +66,7 @@ export default function MasterLoginPage() {
                 required
                 value={email}
                 onChange={e => setEmail(e.target.value)}
-                placeholder="master@autoagente.com"
+                placeholder="master@cargrow.com.br"
                 className="w-full h-10 px-3 bg-slate-900 border border-slate-600 rounded-lg text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-transparent"
               />
             </div>
@@ -106,7 +106,7 @@ export default function MasterLoginPage() {
         </div>
 
         <p className="text-center text-xs text-slate-600 mt-6">
-          AutoAgente Master © {new Date().getFullYear()}
+          CarGrow Master © {new Date().getFullYear()}
         </p>
       </div>
     </div>

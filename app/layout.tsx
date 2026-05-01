@@ -10,7 +10,7 @@ const inter = Inter({
 })
 
 export const metadata: Metadata = {
-  title: 'AutoAgente',
+  title: 'CarGrow',
   description: 'Plataforma SaaS para lojas de veículos',
 }
 

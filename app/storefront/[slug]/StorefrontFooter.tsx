@@ -110,10 +110,10 @@ export function StorefrontFooter({ store, whatsappPhone, sf }: StorefrontFooterP
             <span className="text-xs text-gray-500">
               &copy; {new Date().getFullYear()} {store.name}. Todos os direitos reservados.
             </span>
-            <a href="https://vtauto.com.br" target="_blank" rel="noopener noreferrer"
-              className="flex items-center gap-1.5 opacity-40 hover:opacity-70 transition-opacity" title="Desenvolvido por VT Auto">
+            <a href="https://cargrow.com.br" target="_blank" rel="noopener noreferrer"
+              className="flex items-center gap-1.5 opacity-40 hover:opacity-70 transition-opacity" title="Desenvolvido por CarGrow">
               <span className="text-xs text-gray-500">Desenvolvido por</span>
-              <img src="/vt-auto-logo.svg" alt="VT Auto" className="h-5 w-auto invert" />
+              <span className="text-xs font-extrabold tracking-tight text-gray-200">Car<span className="text-blue-400">Grow</span></span>
             </a>
           </div>
         </div>
@@ -207,10 +207,10 @@ export function StorefrontFooter({ store, whatsappPhone, sf }: StorefrontFooterP
           <span className={`text-xs text-gray-400 ${isVTClass ? 'uppercase tracking-wide' : ''}`}>
             &copy; {new Date().getFullYear()} {store.name}. Todos os direitos reservados.
           </span>
-          <a href="https://vtauto.com.br" target="_blank" rel="noopener noreferrer"
-            className="flex items-center gap-1.5 opacity-50 hover:opacity-80 transition-opacity" title="Desenvolvido por VT Auto">
+          <a href="https://cargrow.com.br" target="_blank" rel="noopener noreferrer"
+            className="flex items-center gap-1.5 opacity-50 hover:opacity-80 transition-opacity" title="Desenvolvido por CarGrow">
             <span className="text-xs text-gray-400">Desenvolvido por</span>
-            <img src="/vt-auto-logo.svg" alt="VT Auto" className="h-5 w-auto" />
+            <span className="text-xs font-extrabold tracking-tight text-gray-700">Car<span className="text-blue-600">Grow</span></span>
           </a>
         </div>
       </div>
