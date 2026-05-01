@@ -1,6 +1,5 @@
 import Image from 'next/image'
 import Link from 'next/link'
-import { Car } from 'lucide-react'
 
 export default function AuthLayout({
   children,
@@ -15,11 +14,15 @@ export default function AuthLayout({
         <div className="absolute top-0 right-0 w-96 h-96 bg-ds-primary-600/20 blur-[120px] -mr-48 -mt-48 rounded-full" />
         <div className="absolute bottom-0 left-0 w-96 h-96 bg-ds-primary-700/10 blur-[100px] -ml-48 -mb-48 rounded-full" />
 
-        <Link href="/" className="flex items-center gap-2 relative z-10 transition-transform active:scale-95">
-          <div className="w-10 h-10 bg-ds-primary-600 rounded-xl flex items-center justify-center shadow-lg shadow-ds-primary-600/20">
-            <Car className="w-6 h-6 text-white" />
-          </div>
-          <span className="text-2xl font-bold tracking-tight">CarGrow</span>
+        <Link href="/" className="relative z-10 transition-transform active:scale-95">
+          <Image
+            src="/brand/cargrow-logo-light.png"
+            alt="CarGrow"
+            width={1000}
+            height={200}
+            priority
+            className="h-9 w-auto"
+          />
         </Link>
 
         <div className="space-y-6 relative z-10">
@@ -54,9 +57,15 @@ export default function AuthLayout({
       <div className="flex items-center justify-center p-8 bg-background relative">
         {/* Logo para mobile */}
         <div className="absolute top-8 left-8 lg:hidden">
-          <Link href="/" className="flex items-center gap-2">
-            <Car className="w-6 h-6 text-ds-primary-600" />
-            <span className="text-xl font-bold tracking-tight text-foreground">CarGrow</span>
+          <Link href="/">
+            <Image
+              src="/brand/cargrow-logo-dark.png"
+              alt="CarGrow"
+              width={1000}
+              height={200}
+              priority
+              className="h-7 w-auto"
+            />
           </Link>
         </div>
 

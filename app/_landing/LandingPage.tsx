@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import Image from 'next/image'
 import Link from 'next/link'
 import {
   ArrowRight,
@@ -8,7 +9,6 @@ import {
   Bot,
   Brain,
   Building2,
-  Car,
   Check,
   ChevronDown,
   Menu,
@@ -32,37 +32,13 @@ function WhatsappIcon(props: React.SVGProps<SVGSVGElement>) {
     </svg>
   )
 }
-function Instagram(props: React.SVGProps<SVGSVGElement>) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
-      <rect x="2" y="2" width="20" height="20" rx="5" />
-      <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
-      <line x1="17.5" y1="6.5" x2="17.51" y2="6.5" />
-    </svg>
-  )
-}
-function Linkedin(props: React.SVGProps<SVGSVGElement>) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
-      <path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-4 0v7h-4v-7a6 6 0 0 1 6-6z" />
-      <rect x="2" y="9" width="4" height="12" />
-      <circle cx="4" cy="4" r="2" />
-    </svg>
-  )
-}
-function Youtube(props: React.SVGProps<SVGSVGElement>) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
-      <path d="M22.54 6.42a2.78 2.78 0 0 0-1.94-2C18.88 4 12 4 12 4s-6.88 0-8.6.46a2.78 2.78 0 0 0-1.94 2A29 29 0 0 0 1 11.75a29 29 0 0 0 .46 5.33A2.78 2.78 0 0 0 3.4 19c1.72.46 8.6.46 8.6.46s6.88 0 8.6-.46a2.78 2.78 0 0 0 1.94-2 29 29 0 0 0 .46-5.25 29 29 0 0 0-.46-5.33z" />
-      <polygon points="9.75 15.02 15.5 11.75 9.75 8.48 9.75 15.02" />
-    </svg>
-  )
-}
-
 const WHATSAPP_NUMBER = '5511969382469'
 const WHATSAPP_LINK = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(
   'Olá! Tenho interesse no CarGrow.'
 )}`
+
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://app.cargrow.com.br'
+const LOGIN_URL = `${APP_URL}/login`
 
 export default function LandingPage() {
   return (
@@ -130,7 +106,7 @@ function Header() {
 
         <div className="ml-auto flex items-center gap-2">
           <Link
-            href="https://app.cargrow.com.br/login"
+            href={LOGIN_URL}
             className="hidden rounded-full px-4 py-2 text-sm font-medium text-slate-600 transition-colors hover:text-slate-900 sm:inline-flex"
           >
             Login
@@ -169,7 +145,7 @@ function Header() {
           ))}
           <div className="mt-2 grid grid-cols-2 gap-2 px-1 pb-1">
             <Link
-              href="https://app.cargrow.com.br/login"
+              href={LOGIN_URL}
               className="rounded-2xl border border-slate-200 px-4 py-3 text-center text-sm font-semibold text-slate-700"
             >
               Login
@@ -189,20 +165,16 @@ function Header() {
   )
 }
 
-function Logo({ light = false }: { light?: boolean }) {
+function Logo({ light = false, className = '' }: { light?: boolean; className?: string }) {
   return (
-    <span
-      className={`flex items-center gap-2 text-lg font-extrabold tracking-tight ${
-        light ? 'text-white' : 'text-slate-900'
-      }`}
-    >
-      <span className="flex size-7 items-center justify-center rounded-lg bg-blue-600 text-white">
-        <Car className="size-4" strokeWidth={2.6} />
-      </span>
-      <span>
-        Car<span className="text-blue-600">Grow</span>
-      </span>
-    </span>
+    <Image
+      src={light ? '/brand/cargrow-logo-light.png' : '/brand/cargrow-logo-dark.png'}
+      alt="CarGrow"
+      width={1000}
+      height={200}
+      priority
+      className={`h-7 w-auto ${className}`}
+    />
   )
 }
 
@@ -974,7 +946,7 @@ function FinalCta() {
             Falar no WhatsApp
           </a>
           <Link
-            href="https://app.cargrow.com.br/login"
+            href={LOGIN_URL}
             className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-7 py-4 text-base font-semibold text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-50"
           >
             Já sou cliente
@@ -987,19 +959,37 @@ function FinalCta() {
 
 /* ─────────────────────────── FOOTER ─────────────────────────── */
 
+type FooterLink = { label: string; href?: string; soon?: boolean; external?: boolean }
+
 function Footer() {
-  const cols = [
+  const cols: { title: string; links: FooterLink[] }[] = [
     {
       title: 'Produto',
-      links: ['Vitrine', 'Agente IA', 'CRM', 'Integrações', 'Planos'],
+      links: [
+        { label: 'Vitrine', href: '#recursos' },
+        { label: 'Agente IA', href: '#recursos' },
+        { label: 'CRM', href: '#recursos' },
+        { label: 'Integrações', href: '#recursos' },
+        { label: 'Planos', href: '#planos' },
+      ],
     },
     {
       title: 'Empresa',
-      links: ['Sobre', 'Blog', 'Contato', 'Trabalhe conosco'],
+      links: [
+        { label: 'Sobre', soon: true },
+        { label: 'Blog', soon: true },
+        { label: 'Contato', href: WHATSAPP_LINK, external: true },
+        { label: 'Trabalhe conosco', soon: true },
+      ],
     },
     {
       title: 'Legal',
-      links: ['Termos de uso', 'Política de privacidade', 'LGPD', 'Status'],
+      links: [
+        { label: 'Termos de uso', soon: true },
+        { label: 'Política de privacidade', soon: true },
+        { label: 'LGPD', soon: true },
+        { label: 'Status', soon: true },
+      ],
     },
   ]
 
@@ -1012,23 +1002,16 @@ function Footer() {
             <p className="mt-4 max-w-sm text-sm text-slate-500">
               A plataforma que vende carro pela sua loja enquanto você dorme.
             </p>
-            <form
-              onSubmit={(e) => e.preventDefault()}
-              className="mt-6 flex max-w-sm items-center gap-2 rounded-full border border-slate-200 bg-slate-50 p-1.5 pl-4"
+            <a
+              href={WHATSAPP_LINK}
+              target="_blank"
+              rel="noopener"
+              className="mt-6 inline-flex items-center gap-2 rounded-full bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-slate-800"
             >
-              <input
-                type="email"
-                placeholder="seu@email.com"
-                className="flex-1 bg-transparent text-sm text-slate-700 outline-none placeholder:text-slate-400"
-              />
-              <button
-                type="submit"
-                className="inline-flex size-9 items-center justify-center rounded-full bg-slate-900 text-white transition-colors hover:bg-slate-800"
-                aria-label="Inscrever-se"
-              >
-                <ArrowRight className="size-4" strokeWidth={2.4} />
-              </button>
-            </form>
+              <WhatsappIcon className="size-4" />
+              Falar com o time
+              <ArrowRight className="size-4" strokeWidth={2.4} />
+            </a>
           </div>
 
           <div className="grid grid-cols-2 gap-8 sm:grid-cols-3">
@@ -1036,14 +1019,24 @@ function Footer() {
               <div key={col.title}>
                 <div className="mb-4 text-sm font-bold text-slate-900">{col.title}</div>
                 <ul className="space-y-3">
-                  {col.links.map((l) => (
-                    <li key={l}>
-                      <a
-                        href="#"
-                        className="text-sm text-slate-500 transition-colors hover:text-slate-900"
-                      >
-                        {l}
-                      </a>
+                  {col.links.map((link) => (
+                    <li key={link.label}>
+                      {link.soon ? (
+                        <span className="inline-flex items-center gap-1.5 text-sm text-slate-400">
+                          {link.label}
+                          <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-slate-500">
+                            em breve
+                          </span>
+                        </span>
+                      ) : (
+                        <a
+                          href={link.href}
+                          {...(link.external ? { target: '_blank', rel: 'noopener' } : {})}
+                          className="text-sm text-slate-500 transition-colors hover:text-slate-900"
+                        >
+                          {link.label}
+                        </a>
+                      )}
                     </li>
                   ))}
                 </ul>
@@ -1052,25 +1045,9 @@ function Footer() {
           </div>
         </div>
 
-        <div className="mt-14 flex flex-col items-start justify-between gap-4 border-t border-slate-100 pt-8 sm:flex-row sm:items-center">
+        <div className="mt-14 border-t border-slate-100 pt-8">
           <div className="text-xs text-slate-500">
             © {new Date().getFullYear()} CarGrow. Todos os direitos reservados.
-          </div>
-          <div className="flex items-center gap-2">
-            {[
-              { Icon: Instagram, label: 'Instagram' },
-              { Icon: Linkedin, label: 'LinkedIn' },
-              { Icon: Youtube, label: 'YouTube' },
-            ].map(({ Icon, label }) => (
-              <a
-                key={label}
-                href="#"
-                aria-label={label}
-                className="inline-flex size-9 items-center justify-center rounded-full border border-slate-200 text-slate-500 transition-colors hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900"
-              >
-                <Icon className="size-4" />
-              </a>
-            ))}
           </div>
         </div>
       </div>

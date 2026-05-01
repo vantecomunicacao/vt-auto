@@ -1,6 +1,7 @@
 'use client'
 
 import { Suspense, useState } from 'react'
+import Image from 'next/image'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
@@ -59,11 +60,15 @@ function LoginForm() {
       <div className="w-full max-w-sm">
 
         {/* Logo */}
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-11 h-11 rounded-xl mb-4" style={{ background: 'var(--ds-primary-600)' }}>
-            <span className="text-white font-semibold text-base">C</span>
-          </div>
-          <h1 className="text-2xl font-semibold text-foreground">CarGrow</h1>
+        <div className="text-center mb-8 flex flex-col items-center">
+          <Image
+            src="/brand/cargrow-logo-dark.png"
+            alt="CarGrow"
+            width={1000}
+            height={200}
+            priority
+            className="h-9 w-auto mb-3"
+          />
           <p className="text-muted-foreground mt-1 text-sm">Acesse o painel da sua loja</p>
         </div>
 

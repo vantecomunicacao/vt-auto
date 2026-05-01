@@ -1,9 +1,10 @@
 'use client'
 
 import { useState } from 'react'
+import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { Loader2, ShieldCheck } from 'lucide-react'
+import { Loader2 } from 'lucide-react'
 
 export default function MasterLoginPage() {
   const router = useRouter()
@@ -44,12 +45,19 @@ export default function MasterLoginPage() {
       <div className="w-full max-w-sm">
 
         {/* Logo */}
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-11 h-11 rounded-xl bg-slate-700 mb-4">
-            <ShieldCheck size={22} className="text-white" />
-          </div>
-          <h1 className="text-2xl font-semibold text-white">Master Admin</h1>
-          <p className="text-slate-400 mt-1 text-sm">Acesso restrito ao superadmin</p>
+        <div className="text-center mb-8 flex flex-col items-center">
+          <Image
+            src="/brand/cargrow-logo-light.png"
+            alt="CarGrow"
+            width={1000}
+            height={200}
+            priority
+            className="h-9 w-auto mb-3"
+          />
+          <span className="inline-block px-2 py-0.5 rounded-full bg-slate-700 text-slate-300 text-[10px] font-bold uppercase tracking-wider">
+            Master Admin
+          </span>
+          <p className="text-slate-400 mt-3 text-sm">Acesso restrito ao superadmin</p>
         </div>
 
         {/* Card */}
