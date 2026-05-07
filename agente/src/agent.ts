@@ -3,7 +3,7 @@ import { randomUUID } from 'crypto'
 import { safeDecrypt } from './crypto'
 import { supabase } from './db'
 import { logStep } from './logger'
-import { sendMessage, sendImage, sendPresenceOnce, downloadMedia } from './evolution'
+import { sendMessage, sendImage, sendPresenceOnce, downloadMedia, applyLabel } from './evolution'
 import { searchKnowledge } from './rag'
 import { getStockContext, getVehicleImages, findVehicleId, searchVehicles } from './vehicles'
 
@@ -237,6 +237,16 @@ export function isWithinHours(agentHours: Record<string, { start: string; end: s
   return cur >= startH * 60 + startM && cur <= endH * 60 + endM
 }
 
+// ── Round-robin de vendedores ───────────────────────────────────────────────
+interface NextSalesperson { id: string; name: string; phone: string }
+
+async function pickNextSalesperson(storeId: string): Promise<NextSalesperson | null> {
+  const { data, error } = await supabase.rpc('pick_next_salesperson', { p_store_id: storeId })
+  if (error || !data || data.length === 0) return null
+  const row = data[0] as NextSalesperson
+  return row.phone ? row : null
+}
+
 // ── Processamento principal ───────────────────────────────────────────────────
 export async function processMessage({ instance, phone, message, pushName }: IncomingMessage): Promise<void> {
   const sessionId = randomUUID()
@@ -245,7 +255,7 @@ export async function processMessage({ instance, phone, message, pushName }: Inc
   const t0 = Date.now()
   const { data: store, error: storeErr } = await supabase
     .from('stores')
-    .select('id, agent_active, agent_name, agent_tone, agent_prompt, agent_hours, openai_api_key, openai_model, whatsapp_instance, agent_cooldown_minutes, notification_phone, agent_context_window, agent_max_message_chars, agent_end_prompt, agent_stop_on_end, agent_typing_speed_ms, agent_rate_limit')
+    .select('id, agent_active, agent_name, agent_tone, agent_prompt, agent_hours, openai_api_key, openai_model, whatsapp_instance, agent_cooldown_minutes, notification_phone, agent_context_window, agent_max_message_chars, agent_end_prompt, agent_stop_on_end, agent_typing_speed_ms, agent_rate_limit, bot_handoff_label_id, agent_summary_fields')
     .eq('whatsapp_instance', instance)
     .single()
 
@@ -402,7 +412,7 @@ export async function processMessage({ instance, phone, message, pushName }: Inc
 
     `${stockSummary}\n\nO estoque acima é um resumo. Sempre use a função buscar_veiculos para obter detalhes completos (preço, km, opcionais) antes de apresentar um veículo específico ao cliente. Nunca invente informações de veículos.`,
 
-    'FOTOS — CRÍTICO: Quando quiser enviar fotos de um veículo ao cliente, inclua o marcador [FOTOS:marca:modelo] na sua resposta (ex: [FOTOS:Toyota:Corolla]). O sistema enviará as imagens automaticamente. NUNCA escreva coisas como "[Enviarei as fotos]", "[Fotos do veículo]" ou qualquer texto entre colchetes que não seja um marcador oficial. Os únicos marcadores permitidos são: [FOTOS:marca:modelo], [TRANSBORDO_ATIVADO] e [CONVERSA_ENCERRADA].',
+    'FOTOS — CRÍTICO: Inclua o marcador [FOTOS:marca:modelo] (ex: [FOTOS:Toyota:Corolla]) APENAS na primeira vez que apresentar um veículo na conversa. O sistema enviará as imagens automaticamente. Se o histórico já mostra que você enviou fotos desse mesmo veículo antes, NÃO repita o marcador — siga a conversa sem reenviar. Use o marcador novamente apenas se o cliente trocar de veículo de interesse ou pedir explicitamente para ver as fotos de novo. NUNCA escreva coisas como "[Enviarei as fotos]", "[Fotos do veículo]" ou qualquer texto entre colchetes que não seja um marcador oficial. Os únicos marcadores permitidos são: [FOTOS:marca:modelo], [TRANSBORDO_ATIVADO] e [CONVERSA_ENCERRADA].',
 
     'Quando detectar interesse em veículo específico, orçamento, forma de pagamento ou veículo para troca, chame a função registrar_qualificacao imediatamente.',
 
@@ -462,7 +472,6 @@ export async function processMessage({ instance, phone, message, pushName }: Inc
   let reply = ''
   let tokensIn = 0
   let tokensOut = 0
-  let specificVehicleSearch: { marca: string; modelo: string } | null = null
 
   try {
     let completion = await openai.chat.completions.create({
@@ -484,10 +493,6 @@ export async function processMessage({ instance, phone, message, pushName }: Inc
       for (const toolCall of toolCalls) {
         if (toolCall.function.name === 'buscar_veiculos') {
           const filters = JSON.parse(toolCall.function.arguments) as { marca?: string; modelo?: string; preco_min?: number; preco_max?: number; ano_min?: number; ano_max?: number; combustivel?: string; transmissao?: string }
-          // Se buscou por marca ou modelo específico, marca para enviar fotos automaticamente
-          if (filters.marca || filters.modelo) {
-            specificVehicleSearch = { marca: filters.marca ?? '', modelo: filters.modelo ?? '' }
-          }
           const searchResult = await searchVehicles(store.id, filters)
           await logStep({ store_id: store.id, session_id: sessionId, phone, step: 'vehicle_search', status: 'ok', data: { filters, preview: searchResult.slice(0, 100) } })
           chatMessages.push({ role: 'tool', tool_call_id: toolCall.id, content: searchResult })
@@ -567,10 +572,26 @@ export async function processMessage({ instance, phone, message, pushName }: Inc
     await supabase.from('leads').update({ ai_active: false, status: 'in_progress', ai_paused_reason: 'transbordo' }).eq('id', lead.id)
     await logStep({ store_id: store.id, session_id: sessionId, phone, step: 'transbordo', status: 'ok', data: { message: 'IA desativada — aguarda humano' } })
 
-    if (store.notification_phone && store.whatsapp_instance) {
-      const clientName = lead.name ?? phone
-      const notifyMsg = `🔔 Atendimento aguardando humano\n\nCliente: ${clientName}\nTelefone: ${phone}\n\nO cliente pediu para falar com um atendente.`
-      await sendMessage(store.whatsapp_instance as string, store.notification_phone as string, notifyMsg).catch(() => { /* não crítico */ })
+    if (store.whatsapp_instance) {
+      const sp = await pickNextSalesperson(store.id as string)
+      const targetPhone = sp?.phone ?? (store.notification_phone as string | null)
+      if (targetPhone) {
+        const clientName = lead.name ?? phone
+        const notifyMsg = `🔔 Atendimento aguardando humano\n\nCliente: ${clientName}\nTelefone: ${phone}\n\nO cliente pediu para falar com um atendente.`
+        await sendMessage(store.whatsapp_instance as string, targetPhone, notifyMsg).catch(() => { /* não crítico */ })
+        if (sp) {
+          await supabase.from('leads').update({ assigned_salesperson_id: sp.id }).eq('id', lead.id)
+          await logStep({ store_id: store.id, session_id: sessionId, phone, step: 'transbordo', status: 'ok', data: { assigned_to: sp.name } })
+        }
+      }
+    }
+
+    // Aplica etiqueta de transbordo no chat (se configurada)
+    const handoffLabelId = store.bot_handoff_label_id as string | null
+    if (handoffLabelId) {
+      await applyLabel(instance, `${phone}@s.whatsapp.net`, handoffLabelId, 'add').catch(async (err) => {
+        await logStep({ store_id: store.id, session_id: sessionId, phone, step: 'transbordo', status: 'error', data: { error: `falha ao aplicar etiqueta: ${err instanceof Error ? err.message : String(err)}` } })
+      })
     }
   }
 
@@ -581,40 +602,64 @@ export async function processMessage({ instance, phone, message, pushName }: Inc
     }
     await logStep({ store_id: store.id, session_id: sessionId, phone, step: 'conversa_encerrada', status: 'ok', data: { stop_on_end: stopOnEnd } })
 
-    if (store.notification_phone && store.whatsapp_instance) {
-      // Gera resumo inteligente da conversa via OpenAI
-      const conversationText = [
-        ...(history ?? []).map(h => `${h.role === 'user' ? 'Cliente' : 'Agente'}: ${h.content}`),
-        `Cliente: ${message}`,
-        `Agente: ${cleanReply}`,
-      ].join('\n')
+    if (store.whatsapp_instance) {
+      const sp = await pickNextSalesperson(store.id as string)
+      const targetPhone = sp?.phone ?? (store.notification_phone as string | null)
 
-      let resumo = ''
-      try {
-        const resumoCompletion = await openai.chat.completions.create({
-          model: (store.openai_model as string) || 'gpt-4o-mini',
-          messages: [
-            {
-              role: 'system',
-              content: 'Você é um assistente que analisa conversas de vendas de veículos e gera resumos objetivos para o vendedor. Responda sempre em português, sem usar negrito nem travessão.',
-            },
-            {
-              role: 'user',
-              content: `Analise a conversa abaixo e responda em formato de tópicos curtos:\n\n- Carro de interesse:\n- Intenção de compra (quente/morno/frio):\n- Forma de pagamento mencionada:\n- Veículo para troca (se houver):\n- Faixa de orçamento (se mencionada):\n- Resumo da conversa (2 a 3 frases):\n\nConversa:\n${conversationText}`,
-            },
-          ],
-          max_tokens: 400,
-        })
-        resumo = resumoCompletion.choices[0]?.message?.content?.trim() ?? ''
-      } catch (resumoErr) {
-        resumo = 'Não foi possível gerar o resumo.'
-        await logStep({ store_id: store.id, session_id: sessionId, phone, step: 'conversa_encerrada', status: 'error', data: { error: resumoErr instanceof Error ? resumoErr.message : String(resumoErr) } })
+      if (targetPhone) {
+        // Gera resumo inteligente da conversa via OpenAI
+        const conversationText = [
+          ...(history ?? []).map(h => `${h.role === 'user' ? 'Cliente' : 'Agente'}: ${h.content}`),
+          `Cliente: ${message}`,
+          `Agente: ${cleanReply}`,
+        ].join('\n')
+
+        const summaryFieldsRaw = store.agent_summary_fields as unknown
+        const summaryFields: string[] = Array.isArray(summaryFieldsRaw) && summaryFieldsRaw.length > 0
+          ? (summaryFieldsRaw as unknown[]).filter((f): f is string => typeof f === 'string' && f.trim().length > 0)
+          : [
+              'Carro de interesse',
+              'Intenção de compra (quente/morno/frio)',
+              'Forma de pagamento mencionada',
+              'Veículo para troca (se houver)',
+              'Faixa de orçamento (se mencionada)',
+              'Resumo da conversa (2 a 3 frases)',
+            ]
+
+        const fieldsBullets = summaryFields.map(f => `- ${f}:`).join('\n')
+
+        let resumo = ''
+        try {
+          const resumoCompletion = await openai.chat.completions.create({
+            model: (store.openai_model as string) || 'gpt-4o-mini',
+            messages: [
+              {
+                role: 'system',
+                content: 'Você é um assistente que analisa conversas de vendas de veículos e gera resumos objetivos para o vendedor. Responda sempre em português, sem usar negrito nem travessão. Preencha cada tópico solicitado; se não houver informação, escreva "não informado".',
+              },
+              {
+                role: 'user',
+                content: `Analise a conversa abaixo e responda em formato de tópicos curtos, mantendo exatamente os tópicos pedidos:\n\n${fieldsBullets}\n\nConversa:\n${conversationText}`,
+              },
+            ],
+            max_tokens: 400,
+          })
+          resumo = resumoCompletion.choices[0]?.message?.content?.trim() ?? ''
+        } catch (resumoErr) {
+          resumo = 'Não foi possível gerar o resumo.'
+          await logStep({ store_id: store.id, session_id: sessionId, phone, step: 'conversa_encerrada', status: 'error', data: { error: resumoErr instanceof Error ? resumoErr.message : String(resumoErr) } })
+        }
+
+        const clientName = lead.name ?? phone
+        const dataHora = new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })
+        const notifyMsg = `✅ Atendimento encerrado\n\nCliente: ${clientName}\nTelefone: ${phone}\nData e hora: ${dataHora}\n\n${resumo}`
+        await sendMessage(store.whatsapp_instance as string, targetPhone, notifyMsg).catch(() => { /* não crítico */ })
+
+        if (sp) {
+          await supabase.from('leads').update({ assigned_salesperson_id: sp.id }).eq('id', lead.id)
+          await logStep({ store_id: store.id, session_id: sessionId, phone, step: 'conversa_encerrada', status: 'ok', data: { assigned_to: sp.name } })
+        }
       }
-
-      const clientName = lead.name ?? phone
-      const dataHora = new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })
-      const notifyMsg = `✅ Atendimento encerrado\n\nCliente: ${clientName}\nTelefone: ${phone}\nData e hora: ${dataHora}\n\n${resumo}`
-      await sendMessage(store.whatsapp_instance as string, store.notification_phone as string, notifyMsg).catch(() => { /* não crítico */ })
     }
   }
 
@@ -630,13 +675,10 @@ export async function processMessage({ instance, phone, message, pushName }: Inc
   const typingSpeedMs = (store.agent_typing_speed_ms as number | null) ?? 20
   const chunks = splitMessage(cleanReply, maxChars)
 
-  // Detecta fonte de fotos
-  const sv = specificVehicleSearch
+  // Fotos só quando o modelo emite o marcador [FOTOS:marca:modelo]
   const fotosSource = fotosMatch
     ? { brand: fotosMatch[1].trim(), model: fotosMatch[2].trim() }
-    : sv
-      ? { brand: sv.marca, model: sv.modelo }
-      : null
+    : null
 
   // Se há fotos a enviar: manda chunks iniciais → fotos → último chunk (pergunta)
   // Se não há fotos: manda todos os chunks normalmente
@@ -674,7 +716,7 @@ export async function processMessage({ instance, phone, message, pushName }: Inc
       if (images.length === 0) {
         await logStep({ store_id: store.id, session_id: sessionId, phone, step: 'photos_sent', status: 'error', data: { brand, model, error: 'Nenhuma imagem cadastrada para este veículo' } })
       } else {
-        await logStep({ store_id: store.id, session_id: sessionId, phone, step: 'photos_sent', status: 'ok', data: { brand, model, count: images.length, source: fotosMatch ? 'marker' : 'auto' } })
+        await logStep({ store_id: store.id, session_id: sessionId, phone, step: 'photos_sent', status: 'ok', data: { brand, model, count: images.length } })
         for (const url of images) {
           await sendImage(instance, phone, url).catch(async (err) => {
             await logStep({ store_id: store.id, session_id: sessionId, phone, step: 'photos_sent', status: 'error', data: { brand, model, url, error: err instanceof Error ? err.message : String(err) } })

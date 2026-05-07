@@ -449,8 +449,8 @@ describe('processMessage — registrar_qualificacao', () => {
   })
 })
 
-describe('processMessage — buscar_veiculos auto-foto', () => {
-  it('envia fotos automaticamente quando buscar_veiculos é chamado com marca/modelo', async () => {
+describe('processMessage — buscar_veiculos sem marcador', () => {
+  it('NÃO envia fotos quando buscar_veiculos é chamado mas a resposta final não contém [FOTOS:]', async () => {
     mockFindVehicleId.mockResolvedValue('v-123')
     mockGetVehicleImages.mockResolvedValue(['https://img.com/1.jpg', 'https://img.com/2.jpg'])
     setupHappyPath()
@@ -467,8 +467,8 @@ describe('processMessage — buscar_veiculos auto-foto', () => {
 
     await processMessage(MSG_PARAMS)
 
-    expect(mockFindVehicleId).toHaveBeenCalledWith(expect.any(String), 'Toyota', 'Corolla')
-    expect(mockSendImage).toHaveBeenCalledTimes(2)
+    expect(mockFindVehicleId).not.toHaveBeenCalled()
+    expect(mockSendImage).not.toHaveBeenCalled()
   })
 })
 
