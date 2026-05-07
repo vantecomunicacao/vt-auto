@@ -37,10 +37,35 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
     jwtCache.set(token, user)
   }
 
+  // O Supabase Auth Hook (`custom_access_token_hook`) injeta `store_id`/`is_master`
+  // como claims top-level no JWT — não em user_metadata/app_metadata. Decodificamos
+  // o payload do JWT (já validado por getUser acima) para ler esses claims.
+  let claims: Record<string, unknown> = {}
+  try {
+    claims = JSON.parse(Buffer.from(token.split('.')[1], 'base64url').toString())
+  } catch { /* token inválido cai no caminho de rejeição abaixo */ }
+
   const meta = (user.user_metadata ?? {}) as Record<string, unknown>
   const appMeta = (user.app_metadata ?? {}) as Record<string, unknown>
-  const storeId = (meta.store_id as string | undefined) ?? (appMeta.store_id as string | undefined)
-  const isMaster = meta.is_master === true || appMeta.is_master === true
+  let storeId = (claims.store_id as string | undefined)
+    ?? (meta.store_id as string | undefined)
+    ?? (appMeta.store_id as string | undefined)
+  const isMaster = claims.is_master === true
+    || meta.is_master === true
+    || appMeta.is_master === true
+
+  // Fallback: se o Supabase Auth Hook (`custom_access_token_hook`) não estiver
+  // habilitado no dashboard, o JWT sai sem `store_id`. Consultamos a tabela
+  // `store_users` direto — mesma estratégia que o Next.js usa em /api/settings.
+  if (!storeId && !isMaster) {
+    const { data: link } = await supabase
+      .from('store_users')
+      .select('store_id')
+      .eq('user_id', user.id)
+      .eq('is_active', true)
+      .maybeSingle()
+    if (link?.store_id) storeId = link.store_id
+  }
 
   if (!storeId && !isMaster) return reject(req, res, next, 'no-store-id')
 

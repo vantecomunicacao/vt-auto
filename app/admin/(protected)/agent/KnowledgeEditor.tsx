@@ -25,7 +25,7 @@ export function KnowledgeEditor({ storeId }: { storeId: string }) {
   async function load() {
     setLoading(true)
     try {
-      const res = await fetchAgent('/knowledge')
+      const res = await fetchAgent('/knowledge', undefined, storeId)
       const data = await res.json() as KnowledgeItem[]
       setItems(Array.isArray(data) ? data : [])
     } catch {
@@ -45,7 +45,7 @@ export function KnowledgeEditor({ storeId }: { storeId: string }) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title: form.title, content: form.content }),
-      })
+      }, storeId)
       if (!res.ok) {
         const err = await res.json() as { error?: string }
         toast.error(err.error ?? 'Erro ao salvar.')
@@ -63,7 +63,7 @@ export function KnowledgeEditor({ storeId }: { storeId: string }) {
 
   async function handleDelete(id: string) {
     try {
-      await fetchAgent(`/knowledge/${id}`, { method: 'DELETE' })
+      await fetchAgent(`/knowledge/${id}`, { method: 'DELETE' }, storeId)
       setItems(prev => prev.filter(i => i.id !== id))
       toast.success('Removido.')
     } catch {

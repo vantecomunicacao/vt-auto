@@ -49,7 +49,13 @@ const corsOptions: CorsOptions = {
   credentials: false,
 }
 
-app.use(helmet())
+app.use(helmet({
+  // API consumida por outras origens (Next.js, painel master). O CORS já controla
+  // quem pode ler a resposta — CORP/COEP padrão do helmet bloqueariam o browser.
+  crossOriginResourcePolicy: { policy: 'cross-origin' },
+  crossOriginOpenerPolicy: false,
+  crossOriginEmbedderPolicy: false,
+}))
 app.use(cors(corsOptions))
 app.use(express.json({ limit: '50mb' }))
 

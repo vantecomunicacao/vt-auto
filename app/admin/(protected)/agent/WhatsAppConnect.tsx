@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
 import { Loader2, Smartphone, CheckCircle2, XCircle, RefreshCw } from 'lucide-react'
 import { fetchAgent } from '@/lib/agent/fetchAgent'
@@ -11,7 +11,10 @@ interface Props {
 
 type Status = 'idle' | 'loading' | 'qr' | 'connected' | 'error'
 
-function useWhatsAppInstance(_storeId: string, mode: 'main' | 'test') {
+const POLL_INTERVAL_MS = 3000
+const MAX_CONSECUTIVE_FAILURES = 10
+
+function useWhatsAppInstance(storeId: string, mode: 'main' | 'test') {
   const [status, setStatus] = useState<Status>('idle')
   const [qr, setQr] = useState<string | null>(null)
   const [polling, setPolling] = useState(false)
@@ -20,34 +23,50 @@ function useWhatsAppInstance(_storeId: string, mode: 'main' | 'test') {
   const statusEndpoint = mode === 'test' ? 'status-test'    : 'status'
   const disconnectEndpoint = mode === 'test' ? 'disconnect-test' : 'disconnect'
 
-  const checkConnection = useCallback(async () => {
+  const failuresRef = useRef(0)
+
+  const checkConnection = useCallback(async (signal: AbortSignal) => {
     try {
-      const res = await fetchAgent(`/whatsapp/${statusEndpoint}`)
+      const res = await fetchAgent(`/whatsapp/${statusEndpoint}`, { signal }, storeId)
       const data = await res.json() as { connected?: boolean }
+      if (signal.aborted) return
+      failuresRef.current = 0
       if (data.connected) {
         setStatus('connected')
         setPolling(false)
       }
-    } catch {
-      // silencioso
+    } catch (err) {
+      if ((err as Error).name === 'AbortError') return
+      failuresRef.current += 1
+      if (failuresRef.current >= MAX_CONSECUTIVE_FAILURES) {
+        setStatus('error')
+        setPolling(false)
+      }
     }
-  }, [statusEndpoint])
+  }, [statusEndpoint, storeId])
+
+  useEffect(() => {
+    const controller = new AbortController()
+    void checkConnection(controller.signal)
+    return () => controller.abort()
+  }, [checkConnection])
 
   useEffect(() => {
     if (!polling) return
-    const interval = setInterval(checkConnection, 3000)
-    return () => clearInterval(interval)
+    const controller = new AbortController()
+    const interval = setInterval(() => { void checkConnection(controller.signal) }, POLL_INTERVAL_MS)
+    return () => {
+      clearInterval(interval)
+      controller.abort()
+    }
   }, [polling, checkConnection])
-
-  useEffect(() => {
-    checkConnection()
-  }, [checkConnection])
 
   async function handleConnect() {
     setStatus('loading')
     setQr(null)
+    failuresRef.current = 0
     try {
-      const res = await fetchAgent(`/whatsapp/${qrEndpoint}`)
+      const res = await fetchAgent(`/whatsapp/${qrEndpoint}`, undefined, storeId)
       const data = await res.json() as { connected?: boolean; qr?: string; qrcode?: string }
       if (data.connected) { setStatus('connected'); return }
       const qrCode = data.qr ?? data.qrcode
@@ -62,7 +81,7 @@ function useWhatsAppInstance(_storeId: string, mode: 'main' | 'test') {
     setStatus('loading')
     setPolling(false)
     try {
-      await fetchAgent(`/whatsapp/${disconnectEndpoint}`, { method: 'DELETE' })
+      await fetchAgent(`/whatsapp/${disconnectEndpoint}`, { method: 'DELETE' }, storeId)
       setStatus('idle')
       setQr(null)
     } catch {

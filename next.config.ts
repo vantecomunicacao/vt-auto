@@ -25,15 +25,17 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default withSentryConfig(nextConfig, {
-  org: 'vante-comunicacao',
-  project: 'javascript-nextjs',
+export default process.env.NODE_ENV === 'development'
+  ? nextConfig
+  : withSentryConfig(nextConfig, {
+      org: 'vante-comunicacao',
+      project: 'javascript-nextjs',
 
-  // Faz upload dos source maps para o Sentry (erros mostram código original, não minificado)
-  silent: !process.env.CI,
+      // Faz upload dos source maps para o Sentry (erros mostram código original, não minificado)
+      silent: !process.env.CI,
 
-  // Desativa tunneling e features que precisam de servidor Sentry próprio
-  widenClientFileUpload: true,
-  disableLogger: true,
-  automaticVercelMonitors: false,
-})
+      // Desativa tunneling e features que precisam de servidor Sentry próprio
+      widenClientFileUpload: true,
+      disableLogger: true,
+      automaticVercelMonitors: false,
+    })

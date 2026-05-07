@@ -69,7 +69,7 @@ export function LogsContent({ storeId }: { storeId: string }) {
   async function loadLogs() {
     setLoading(true)
     try {
-      const res = await fetchAgent('/logs?limit=200')
+      const res = await fetchAgent('/logs?limit=200', undefined, storeId)
       const data = await res.json() as LogEntry[]
       setLogs(data)
     } finally {
@@ -80,7 +80,7 @@ export function LogsContent({ storeId }: { storeId: string }) {
   async function startLive() {
     if (esRef.current) { esRef.current.close() }
     try {
-      const ticket = await getSseTicket()
+      const ticket = await getSseTicket(storeId)
       const es = new EventSource(buildSseUrl('/logs/stream', ticket))
       es.onmessage = (e) => {
         try {
