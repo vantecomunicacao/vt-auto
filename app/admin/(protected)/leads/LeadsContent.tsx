@@ -1,6 +1,10 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { LayoutList, LayoutGrid } from 'lucide-react'
+import LeadsTable from './LeadsTable'
+import LeadsKanban from './LeadsKanban'
+import { STATUS_OPTIONS } from './leadsUtils'
 
 type Vehicle = { brand: string; model: string; year_model: number }
 
@@ -26,65 +30,11 @@ export type Lead = {
   vehicles: Vehicle[] | null
 }
 
-const STATUS_OPTIONS = [
-  { value: 'new',         label: 'Novo',            className: 'bg-slate-100 text-slate-600' },
-  { value: 'qualifying',  label: 'Qualificando',    className: 'bg-yellow-100 text-yellow-700' },
-  { value: 'negotiating', label: 'Negociando',      className: 'bg-orange-100 text-orange-700' },
-  { value: 'closing',     label: 'Em fechamento',   className: 'bg-blue-100 text-blue-700' },
-  { value: 'converted',   label: 'Convertido',      className: 'bg-green-100 text-green-700' },
-  { value: 'lost',        label: 'Perdido',         className: 'bg-gray-100 text-gray-500' },
-  // legados — mantidos para compatibilidade
-  { value: 'in_progress', label: 'Em andamento',    className: 'bg-yellow-100 text-yellow-700' },
-  { value: 'qualified',   label: 'Qualificado',     className: 'bg-blue-100 text-blue-700' },
-]
-
-const SOURCE_MAP: Record<string, { label: string; className: string }> = {
-  whatsapp: { label: 'WhatsApp', className: 'bg-green-100 text-green-700' },
-  vitrine:  { label: 'Vitrine',  className: 'bg-blue-100 text-blue-700' },
-  manual:   { label: 'Manual',   className: 'bg-gray-100 text-gray-500' },
-}
-
-function getStatusMeta(status: string) {
-  return STATUS_OPTIONS.find(s => s.value === status) ?? { label: status, className: 'bg-gray-100 text-gray-500' }
-}
-
-function formatDate(dateStr: string) {
-  return new Date(dateStr).toLocaleDateString('pt-BR', {
-    day: '2-digit', month: '2-digit', year: 'numeric',
-  })
-}
-
-function formatRelative(dateStr: string | null): string {
-  if (!dateStr) return '—'
-  const diff = Date.now() - new Date(dateStr).getTime()
-  const mins = Math.floor(diff / 60000)
-  if (mins < 60) return `${mins}min atrás`
-  const hours = Math.floor(mins / 60)
-  if (hours < 24) return `${hours}h atrás`
-  const days = Math.floor(hours / 24)
-  return `${days}d atrás`
-}
-
-function formatDuration(dateStr: string | null): string {
-  if (!dateStr) return '—'
-  const diff = Date.now() - new Date(dateStr).getTime()
-  const mins = Math.floor(diff / 60000)
-  if (mins < 60) return `${mins}min`
-  const hours = Math.floor(mins / 60)
-  if (hours < 24) return `${hours}h`
-  const days = Math.floor(hours / 24)
-  return `${days}d`
-}
-
-function getVehicleName(lead: Lead) {
-  if (lead.vehicles) {
-    const v = lead.vehicles?.[0]
-    return v ? `${v.brand} ${v.model} ${v.year_model}` : lead.vehicle_interest ?? '—'
-  }
-  return lead.vehicle_interest ?? '—'
-}
+type View = 'table' | 'kanban'
+const VIEW_STORAGE_KEY = 'leads-view'
 
 export default function LeadsContent({ leads }: { leads: Lead[] }) {
+  const [view, setView] = useState<View>('table')
   const [statusFilter, setStatusFilter] = useState('all')
   const [search, setSearch] = useState('')
   const [updatingId, setUpdatingId] = useState<string | null>(null)
@@ -94,9 +44,18 @@ export default function LeadsContent({ leads }: { leads: Lead[] }) {
   const [errorMsg, setErrorMsg] = useState('')
   const [togglingAi, setTogglingAi] = useState<string | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
-  const [expandedId, setExpandedId] = useState<string | null>(null)
   const dialogRef = useRef<HTMLDialogElement>(null)
   const deleteDialogRef = useRef<HTMLDialogElement>(null)
+
+  useEffect(() => {
+    const stored = localStorage.getItem(VIEW_STORAGE_KEY)
+    if (stored === 'table' || stored === 'kanban') setView(stored)
+  }, [])
+
+  function changeView(next: View) {
+    setView(next)
+    localStorage.setItem(VIEW_STORAGE_KEY, next)
+  }
 
   async function handleToggleAi(lead: Lead) {
     setTogglingAi(lead.id)
@@ -115,7 +74,7 @@ export default function LeadsContent({ leads }: { leads: Lead[] }) {
   }
 
   const filtered = localLeads.filter(lead => {
-    const matchStatus = statusFilter === 'all' || lead.status === statusFilter
+    const matchStatus = view === 'kanban' || statusFilter === 'all' || lead.status === statusFilter
     const q = search.toLowerCase()
     const matchSearch = !q
       || (lead.name ?? '').toLowerCase().includes(q)
@@ -185,20 +144,26 @@ export default function LeadsContent({ leads }: { leads: Lead[] }) {
     }
   }
 
+  const emptyMessage = localLeads.length === 0
+    ? 'Nenhum lead cadastrado ainda.'
+    : 'Nenhum resultado para os filtros aplicados.'
+
   return (
     <div>
-      {/* Filters */}
-      <div className="flex flex-wrap gap-3 mb-5">
-        <select
-          value={statusFilter}
-          onChange={e => setStatusFilter(e.target.value)}
-          className="border border-border rounded-lg px-3 py-2 text-sm bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ds-primary-300"
-        >
-          <option value="all">Todos os status</option>
-          {STATUS_OPTIONS.map(opt => (
-            <option key={opt.value} value={opt.value}>{opt.label}</option>
-          ))}
-        </select>
+      {/* Filters + view toggle */}
+      <div className="flex flex-wrap items-center gap-3 mb-5">
+        {view === 'table' && (
+          <select
+            value={statusFilter}
+            onChange={e => setStatusFilter(e.target.value)}
+            className="border border-border rounded-lg px-3 py-2 text-sm bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ds-primary-300"
+          >
+            <option value="all">Todos os status</option>
+            {STATUS_OPTIONS.map(opt => (
+              <option key={opt.value} value={opt.value}>{opt.label}</option>
+            ))}
+          </select>
+        )}
 
         <input
           type="text"
@@ -207,160 +172,59 @@ export default function LeadsContent({ leads }: { leads: Lead[] }) {
           onChange={e => setSearch(e.target.value)}
           className="border border-border rounded-lg px-3 py-2 text-sm bg-card text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ds-primary-300 min-w-[220px]"
         />
+
+        <div className="ml-auto inline-flex items-center border border-border rounded-lg bg-card overflow-hidden">
+          <button
+            type="button"
+            onClick={() => changeView('table')}
+            title="Visualização em tabela"
+            aria-pressed={view === 'table'}
+            className={`flex items-center gap-1.5 px-3 py-2 text-xs font-medium transition-colors ${
+              view === 'table'
+                ? 'bg-ds-primary-600 text-white'
+                : 'text-foreground hover:bg-muted'
+            }`}
+          >
+            <LayoutList size={14} />
+            Tabela
+          </button>
+          <button
+            type="button"
+            onClick={() => changeView('kanban')}
+            title="Visualização em Kanban"
+            aria-pressed={view === 'kanban'}
+            className={`flex items-center gap-1.5 px-3 py-2 text-xs font-medium transition-colors ${
+              view === 'kanban'
+                ? 'bg-ds-primary-600 text-white'
+                : 'text-foreground hover:bg-muted'
+            }`}
+          >
+            <LayoutGrid size={14} />
+            Kanban
+          </button>
+        </div>
       </div>
 
-      {/* Table */}
-      <div className="bg-card border border-border rounded-xl overflow-hidden shadow-sm">
-        {filtered.length === 0 ? (
-          <div className="py-16 text-center text-sm text-muted-foreground">
-            {localLeads.length === 0
-              ? 'Nenhum lead cadastrado ainda.'
-              : 'Nenhum resultado para os filtros aplicados.'}
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-border bg-muted/40">
-                  <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">Contato</th>
-                  <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">Interesse</th>
-                  <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">Origem</th>
-                  <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">Status</th>
-                  <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">Bot</th>
-                  <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">Data</th>
-                  <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">Ações</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map((lead, i) => {
-                  const statusMeta = getStatusMeta(lead.status)
-                  const sourceMeta = SOURCE_MAP[lead.source] ?? { label: lead.source, className: 'bg-gray-100 text-gray-500' }
-                  const isExpanded = expandedId === lead.id
-                  const isLast = i === filtered.length - 1
-                  return (
-                    <>
-                    <tr
-                      key={lead.id}
-                      onClick={() => setExpandedId(isExpanded ? null : lead.id)}
-                      className={`border-b border-border/50 hover:bg-muted/30 transition-colors cursor-pointer ${isExpanded ? 'bg-muted/20' : ''} ${isLast && !isExpanded ? 'border-b-0' : ''}`}
-                    >
-                      {/* Contato */}
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-1.5">
-                          <span className={`text-muted-foreground transition-transform text-[10px] ${isExpanded ? 'rotate-90' : ''}`}>▶</span>
-                          <div>
-                            <div className="font-medium text-foreground">{lead.name ?? '—'}</div>
-                            <div className="text-xs text-muted-foreground">{lead.phone ?? '—'}</div>
-                          </div>
-                        </div>
-                      </td>
-
-                      {/* Interesse */}
-                      <td className="px-4 py-3 max-w-[220px]">
-                        <div className="font-medium text-foreground truncate">{getVehicleName(lead)}</div>
-                        <div className="flex flex-col gap-0.5 mt-0.5">
-                          {lead.budget && <span className="text-[10px] text-muted-foreground truncate">Orçamento: {lead.budget}</span>}
-                          {lead.payment_method && <span className="text-[10px] text-muted-foreground truncate">{lead.payment_method}</span>}
-                          {lead.trade_in && <span className="text-[10px] text-muted-foreground truncate">Troca: {lead.trade_in}</span>}
-                        </div>
-                      </td>
-
-                      {/* Origem */}
-                      <td className="px-4 py-3">
-                        <span className={`inline-block text-xs font-medium px-2 py-0.5 rounded-full ${sourceMeta.className}`}>
-                          {sourceMeta.label}
-                        </span>
-                      </td>
-
-                      {/* Status */}
-                      <td className="px-4 py-3">
-                        <span className={`inline-block text-xs font-medium px-2 py-0.5 rounded-full ${statusMeta.className}`}>
-                          {statusMeta.label}
-                        </span>
-                      </td>
-
-                      {/* Bot */}
-                      <td className="px-4 py-3">
-                        <div className="flex flex-col gap-0.5">
-                          <button
-                            onClick={e => { e.stopPropagation(); handleToggleAi(lead) }}
-                            disabled={togglingAi === lead.id}
-                            title={lead.ai_active ? 'IA ativa — clique para pausar' : 'IA pausada — clique para reativar'}
-                            className={`text-xs font-medium px-2 py-0.5 rounded-full transition-colors ${
-                              lead.ai_active
-                                ? 'bg-emerald-100 text-emerald-700 hover:bg-red-100 hover:text-red-700'
-                                : 'bg-gray-100 text-gray-500 hover:bg-emerald-100 hover:text-emerald-700'
-                            }`}
-                          >
-                            {togglingAi === lead.id ? '...' : lead.ai_active ? 'Ativa' : 'Pausada'}
-                          </button>
-                          {!lead.ai_active && lead.ai_paused_reason && (
-                            <span className="text-[10px] text-muted-foreground leading-none px-1">
-                              {lead.ai_paused_reason === 'transbordo' && 'pediu humano'}
-                              {lead.ai_paused_reason === 'encerramento' && 'conversa encerrada'}
-                              {lead.ai_paused_reason === 'manual' && 'pausado manualmente'}
-                            </span>
-                          )}
-                        </div>
-                      </td>
-
-                      {/* Data */}
-                      <td className="px-4 py-3 text-muted-foreground text-xs whitespace-nowrap">
-                        {formatDate(lead.created_at)}
-                      </td>
-
-                      {/* Ações */}
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-3">
-                          <button
-                            onClick={e => { e.stopPropagation(); openDialog(lead) }}
-                            className="text-xs text-ds-primary-600 hover:text-ds-primary-800 font-medium underline underline-offset-2"
-                          >
-                            Atualizar status
-                          </button>
-                          <button
-                            onClick={e => { e.stopPropagation(); openDeleteDialog(lead) }}
-                            className="text-xs text-red-500 hover:text-red-700 font-medium underline underline-offset-2"
-                          >
-                            Apagar
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-
-                    {/* Painel expansível */}
-                    {isExpanded && (
-                      <tr key={`${lead.id}-detail`} className={`bg-slate-50 border-b border-border/50 ${isLast ? 'border-b-0' : ''}`}>
-                        <td colSpan={7} className="px-6 py-4">
-                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs">
-                            <div className="flex flex-col gap-0.5">
-                              <span className="text-muted-foreground font-medium uppercase tracking-wide text-[10px]">Follow-ups enviados</span>
-                              <span className="text-foreground font-semibold text-sm">{lead.follow_up_total ?? 0}</span>
-                            </div>
-                            <div className="flex flex-col gap-0.5">
-                              <span className="text-muted-foreground font-medium uppercase tracking-wide text-[10px]">Último follow-up</span>
-                              <span className="text-foreground font-semibold text-sm">{formatRelative(lead.last_follow_up_at)}</span>
-                            </div>
-                            <div className="flex flex-col gap-0.5">
-                              <span className="text-muted-foreground font-medium uppercase tracking-wide text-[10px]">Última msg do lead</span>
-                              <span className="text-foreground font-semibold text-sm">{formatRelative(lead.last_user_message_at)}</span>
-                            </div>
-                            <div className="flex flex-col gap-0.5">
-                              <span className="text-muted-foreground font-medium uppercase tracking-wide text-[10px]">Tempo sem resposta</span>
-                              <span className="text-foreground font-semibold text-sm">{formatDuration(lead.last_user_message_at)}</span>
-                            </div>
-                          </div>
-                        </td>
-                      </tr>
-                    )}
-                    </>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+      {/* Conteúdo */}
+      {view === 'table' ? (
+        <LeadsTable
+          leads={filtered}
+          togglingAi={togglingAi}
+          onToggleAi={handleToggleAi}
+          onUpdateStatus={openDialog}
+          onDelete={openDeleteDialog}
+          emptyMessage={emptyMessage}
+        />
+      ) : (
+        <LeadsKanban
+          leads={filtered}
+          togglingAi={togglingAi}
+          onToggleAi={handleToggleAi}
+          onUpdateStatus={openDialog}
+          onDelete={openDeleteDialog}
+          emptyMessage={emptyMessage}
+        />
+      )}
 
       {/* Native Dialog — update status */}
       <dialog
@@ -406,6 +270,7 @@ export default function LeadsContent({ leads }: { leads: Lead[] }) {
           </button>
         </div>
       </dialog>
+
       {/* Native Dialog — confirmar exclusão */}
       <dialog
         ref={deleteDialogRef}

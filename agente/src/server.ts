@@ -4,9 +4,9 @@ import cors, { type CorsOptions } from 'cors'
 import helmet from 'helmet'
 import rateLimit from 'express-rate-limit'
 import { enqueueMessage, enqueueMedia } from './agent'
-import { isBotSentMessage, markAsRead, sendReply, sendPresenceOnce } from './evolution'
+import { isBotSentMessage, markAsRead, sendReply, sendPresenceOnce, findLabels, sendMessage } from './evolution'
 import { streamLogsToClient } from './logger'
-import { createOrGetQR, checkStatus, disconnectInstance, instanceName } from './whatsapp'
+import { createOrGetQR, checkStatus, disconnectInstance, instanceName, configureWebhook } from './whatsapp'
 import { supabase } from './db'
 import { addKnowledge, deleteKnowledge, listKnowledge } from './rag'
 import { runFollowUpCycle } from './followup'
@@ -78,8 +78,10 @@ const webhookLimiter = rateLimit({
 app.use('/webhook', webhookLimiter)
 app.use('/whatsapp', adminLimiter)
 app.use('/knowledge', adminLimiter)
+app.use('/labels', adminLimiter)
 app.use('/logs', adminLimiter)
 app.use('/auth', adminLimiter)
+app.use('/salespeople', adminLimiter)
 
 const PORT = process.env.AGENT_PORT ?? 3001
 
@@ -90,6 +92,48 @@ app.get('/health', (_req, res) => {
 
 // Deduplicação de mensagens não suportadas (Evolution envia 2x o mesmo messageId)
 const unsupportedHandled = new Set<string>()
+
+// ── Handler: associação de label a um chat ───────────────────────────────────
+// Quando o usuário adiciona/remove a "label de desligamento" do chat no app,
+// pausa/reativa o bot para aquele lead.
+async function handleLabelAssociation(
+  instance: string,
+  data: { chatId?: string; remoteJid?: string; labelId?: string; type?: string; association?: string },
+): Promise<void> {
+  const remoteJid: string = data?.chatId ?? data?.remoteJid ?? ''
+  if (!remoteJid || remoteJid.endsWith('@g.us') || remoteJid.endsWith('@broadcast')) return
+  const phone = remoteJid.replace('@s.whatsapp.net', '')
+  if (!phone) return
+
+  const labelId: string = String(data?.labelId ?? '')
+  if (!labelId) return
+
+  // Evolution às vezes manda 'type', às vezes 'association' — ambos com 'add'|'remove'
+  const action = (data?.type ?? data?.association ?? '').toLowerCase()
+  if (action !== 'add' && action !== 'remove') return
+
+  const { data: store } = await supabase
+    .from('stores')
+    .select('id, bot_disable_label_id')
+    .eq('whatsapp_instance', instance)
+    .single()
+
+  if (!store?.bot_disable_label_id) return
+  if (String(store.bot_disable_label_id) !== labelId) return
+
+  if (action === 'add') {
+    await supabase.from('leads')
+      .update({ ai_active: false, ai_paused_reason: 'whatsapp_label' })
+      .eq('store_id', store.id)
+      .eq('phone', phone)
+  } else {
+    await supabase.from('leads')
+      .update({ ai_active: true, ai_paused_reason: null })
+      .eq('store_id', store.id)
+      .eq('phone', phone)
+      .eq('ai_paused_reason', 'whatsapp_label')
+  }
+}
 
 // ── Webhook Evolution API ─────────────────────────────────────────────────────
 function handleEvolutionWebhook(req: Request, res: Response): void {
@@ -107,6 +151,18 @@ function handleEvolutionWebhook(req: Request, res: Response): void {
     // Removido o desligamento automático a pedido do usuário
     return
   }
+
+  // LABELS_ASSOCIATION — etiqueta adicionada/removida de um chat no WhatsApp
+  if (event === 'labels_association') {
+    handleLabelAssociation(instance, body.data).catch((err: unknown) => {
+      console.error('[agente] erro em labels_association:', err)
+    })
+    return
+  }
+
+  // LABELS_EDIT — usuário criou/editou/removeu uma label no app
+  // Não tratamos em tempo real: o usuário re-sincroniza pelo painel quando quiser.
+  if (event === 'labels_edit') return
 
   if (event !== 'messages_upsert') return
 
@@ -365,6 +421,94 @@ app.delete('/knowledge/:id', requireAuth, async (req, res) => {
       }
     }
     await deleteKnowledge(req.params.id)
+    res.json({ ok: true })
+  } catch (err) {
+    res.status(500).json({ error: err instanceof Error ? err.message : String(err) })
+  }
+})
+
+// ── Labels (etiquetas WhatsApp Business) ─────────────────────────────────────
+app.get('/labels', requireAuth, async (req, res) => {
+  const storeId = resolveStoreId(req)
+  if (!storeId) { res.sendStatus(400); return }
+  const { data } = await supabase
+    .from('whatsapp_labels')
+    .select('id, evolution_label_id, name, color, synced_at')
+    .eq('store_id', storeId)
+    .order('name', { ascending: true })
+  res.json(data ?? [])
+})
+
+app.post('/labels/sync', requireAuth, async (req, res) => {
+  const storeId = resolveStoreId(req)
+  if (!storeId) { res.sendStatus(400); return }
+  try {
+    const instance = await getInstanceName(storeId)
+    // Garante que o webhook da instância já tem LABELS_ASSOCIATION habilitado
+    try {
+      const webhookUrl = buildWebhookUrl()
+      await configureWebhook(instance, webhookUrl)
+    } catch (err) {
+      console.warn('[labels/sync] não foi possível reconfigurar webhook:', err)
+    }
+
+    const labels = await findLabels(instance)
+    const now = new Date().toISOString()
+    const rows = labels.map(l => ({
+      store_id: storeId,
+      evolution_label_id: l.id,
+      name: l.name,
+      color: l.color ?? null,
+      synced_at: now,
+    }))
+
+    if (rows.length > 0) {
+      const { error } = await supabase
+        .from('whatsapp_labels')
+        .upsert(rows, { onConflict: 'store_id,evolution_label_id' })
+      if (error) throw new Error(error.message)
+    }
+
+    // Remove etiquetas que não existem mais no WhatsApp
+    const ids = rows.map(r => r.evolution_label_id)
+    const delQuery = supabase.from('whatsapp_labels').delete().eq('store_id', storeId)
+    if (ids.length > 0) await delQuery.not('evolution_label_id', 'in', `(${ids.map(i => `"${i}"`).join(',')})`)
+    else await delQuery
+
+    res.json({ ok: true, count: rows.length })
+  } catch (err) {
+    res.status(500).json({ error: err instanceof Error ? err.message : String(err) })
+  }
+})
+
+// ── Vendedores: enviar mensagem de teste ─────────────────────────────────────
+app.post('/salespeople/test', requireAuth, async (req, res) => {
+  const storeId = resolveStoreId(req)
+  if (!storeId) { res.sendStatus(400); return }
+
+  const phoneRaw = (req.body as { phone?: string })?.phone
+  const phone = typeof phoneRaw === 'string' ? phoneRaw.replace(/\D/g, '') : ''
+  if (phone.length < 10) {
+    res.status(400).json({ error: 'Telefone inválido.' })
+    return
+  }
+
+  try {
+    const { data: store } = await supabase
+      .from('stores')
+      .select('whatsapp_instance, agent_name, name')
+      .eq('id', storeId)
+      .single()
+
+    const instance = store?.whatsapp_instance
+    if (!instance) {
+      res.status(400).json({ error: 'WhatsApp não está conectado nesta loja.' })
+      return
+    }
+
+    const storeName = (store?.name as string | null) || (store?.agent_name as string | null) || 'CarGrow'
+    const message = `✅ Teste de notificação\n\nVocê foi cadastrado como vendedor na loja *${storeName}* e vai receber leads pelo WhatsApp.\n\nSe recebeu esta mensagem, está tudo certo!`
+    await sendMessage(instance as string, phone, message)
     res.json({ ok: true })
   } catch (err) {
     res.status(500).json({ error: err instanceof Error ? err.message : String(err) })

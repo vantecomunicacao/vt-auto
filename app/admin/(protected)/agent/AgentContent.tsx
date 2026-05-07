@@ -9,11 +9,14 @@ import { Switch } from '@/components/ui/switch'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { toast } from 'sonner'
-import { Loader2, Bot, Eye, EyeOff, KeyRound, Smartphone, BookOpen, Clock, Settings, RotateCcw } from 'lucide-react'
+import { Loader2, Bot, Eye, EyeOff, KeyRound, Smartphone, BookOpen, Clock, Settings, RotateCcw, Users } from 'lucide-react'
 import { WhatsAppConnect } from './WhatsAppConnect'
+import { WhatsAppLabels } from './WhatsAppLabels'
 import { KnowledgeEditor } from './KnowledgeEditor'
 import { FollowUpConfig } from './FollowUpConfig'
 import { AgentHours } from './AgentHours'
+import { Salespeople } from './Salespeople'
+import { SummaryFieldsEditor } from './SummaryFieldsEditor'
 
 interface Props {
   storeId: string
@@ -220,7 +223,7 @@ E, se ele quiser, **transfira imediatamente para um humano**, finalizando o aten
       </div>
 
       <Tabs defaultValue="settings" className="w-full">
-        <TabsList className="grid w-full grid-cols-5 mb-4">
+        <TabsList className="grid w-full grid-cols-6 mb-4">
           <TabsTrigger value="settings" className="gap-1.5 text-xs">
             <Settings size={13} />Personalidade
           </TabsTrigger>
@@ -229,6 +232,9 @@ E, se ele quiser, **transfira imediatamente para um humano**, finalizando o aten
           </TabsTrigger>
           <TabsTrigger value="knowledge" className="gap-1.5 text-xs">
             <BookOpen size={13} />Conhecimento
+          </TabsTrigger>
+          <TabsTrigger value="salespeople" className="gap-1.5 text-xs">
+            <Users size={13} />Vendedores
           </TabsTrigger>
           <TabsTrigger value="followup" className="gap-1.5 text-xs">
             <Clock size={13} />Follow-up
@@ -346,10 +352,10 @@ E, se ele quiser, **transfira imediatamente para um humano**, finalizando o aten
                 <Select value={form.openai_model} onValueChange={v => setForm(f => ({ ...f, openai_model: v ?? '' }))}>
                   <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="gpt-4.1-mini">GPT-4.1 Mini (rápido e econômico)</SelectItem>
-                    <SelectItem value="gpt-4o-mini">GPT-4o Mini (rápido e econômico)</SelectItem>
-                    <SelectItem value="gpt-4o">GPT-4o (mais inteligente)</SelectItem>
-                    <SelectItem value="gpt-3.5-turbo">GPT-3.5 Turbo (legado)</SelectItem>
+                    <SelectItem value="gpt-4.1-mini" description="Rápido e econômico">GPT-4.1 Mini</SelectItem>
+                    <SelectItem value="gpt-4o-mini" description="Rápido e econômico">GPT-4o Mini</SelectItem>
+                    <SelectItem value="gpt-4o" description="Inteligente">GPT-4o</SelectItem>
+                    <SelectItem value="gpt-4.1" description="Mais inteligente">GPT-4.1</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -472,7 +478,7 @@ E, se ele quiser, **transfira imediatamente para um humano**, finalizando o aten
                 <p className="text-xs text-muted-foreground">Se um lead ultrapassar esse limite, o agente é pausado automaticamente e você recebe um aviso. Útil para evitar loops infinitos.</p>
               </div>
               <div className="space-y-1.5">
-                <Label className="text-sm font-medium text-slate-700">Número para notificação</Label>
+                <Label className="text-sm font-medium text-slate-700">Número do admin (erros do sistema)</Label>
                 <Input
                   type="tel"
                   value={form.notification_phone}
@@ -480,7 +486,7 @@ E, se ele quiser, **transfira imediatamente para um humano**, finalizando o aten
                   placeholder="5511999990000"
                   className="h-10"
                 />
-                <p className="text-xs text-muted-foreground">Recebe aviso via WhatsApp quando um cliente pedir atendimento humano. Formato: DDI + DDD + número.</p>
+                <p className="text-xs text-muted-foreground">Recebe avisos de problemas técnicos (chave OpenAI inválida, rate limit). Notificações de leads vão para os vendedores cadastrados na aba Vendedores. Formato: DDI + DDD + número.</p>
               </div>
             </div>
           </div>
@@ -488,13 +494,20 @@ E, se ele quiser, **transfira imediatamente para um humano**, finalizando o aten
         </TabsContent>
 
         {/* ── Tab: WhatsApp ──────────────────────────────────────────────── */}
-        <TabsContent value="whatsapp" className="outline-none">
+        <TabsContent value="whatsapp" className="outline-none space-y-4">
           <WhatsAppConnect storeId={storeId} />
+          <WhatsAppLabels storeId={storeId} />
         </TabsContent>
 
         {/* ── Tab: Conhecimento ──────────────────────────────────────────── */}
         <TabsContent value="knowledge" className="outline-none">
           <KnowledgeEditor storeId={storeId} />
+        </TabsContent>
+
+        {/* ── Tab: Vendedores ────────────────────────────────────────────── */}
+        <TabsContent value="salespeople" className="outline-none space-y-4">
+          <Salespeople storeId={storeId} />
+          <SummaryFieldsEditor />
         </TabsContent>
 
         {/* ── Tab: Follow-up ─────────────────────────────────────────────── */}

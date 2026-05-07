@@ -12,6 +12,7 @@ import {
   Check,
   ChevronDown,
   Menu,
+  MapPin,
   Mic,
   Phone,
   Plug,
@@ -1046,8 +1047,12 @@ function Footer() {
         </div>
 
         <div className="mt-14 border-t border-slate-100 pt-8">
-          <div className="text-xs text-slate-500">
-            © {new Date().getFullYear()} CarGrow. Todos os direitos reservados.
+          <div className="flex flex-col gap-2 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between">
+            <div>© {new Date().getFullYear()} CarGrow. Todos os direitos reservados.</div>
+            <div className="inline-flex items-center gap-1.5">
+              <MapPin size={13} className="shrink-0" />
+              Av. João Paulino Vieira Filho, 305 - Sala 106 - Zona 7, Maringá - PR, 87020-015
+            </div>
           </div>
         </div>
       </div>

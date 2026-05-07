@@ -8,7 +8,9 @@
     "start": "next start",
     "lint": "eslint",
     "test:e2e": "dotenv -e .env.test -- playwright test",
-    "test:e2e:ui": "dotenv -e .env.test -- playwright test --ui"
+    "test:e2e:ui": "dotenv -e .env.test -- playwright test --ui",
+    "healthcheck": "npx -y tsx scripts/healthcheck.mts",
+    "healthcheck:prod": "npx -y tsx scripts/healthcheck.mts --env=prod"
   },
   "dependencies": {
     "@base-ui/react": "^1.3.0",

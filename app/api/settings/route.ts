@@ -58,8 +58,11 @@ export async function PATCH(request: NextRequest) {
     'agent_active', 'agent_name', 'agent_tone', 'agent_prompt', 'openai_api_key', 'openai_model',
     'agent_context_window', 'agent_debounce_seconds', 'agent_cooldown_minutes', 'notification_phone',
     'agent_max_message_chars', 'agent_typing_speed_ms', 'agent_image_prompt', 'agent_end_prompt', 'agent_stop_on_end', 'agent_rate_limit',
+    'agent_summary_fields',
     // Agente IA — follow-up e horários
     'follow_up_enabled', 'follow_up_config', 'agent_hours',
+    // Etiquetas WhatsApp
+    'bot_disable_label_id', 'bot_handoff_label_id',
   ] as const
   type AllowedKey = typeof allowed[number]
   const safeBody = Object.fromEntries(
@@ -69,6 +72,19 @@ export async function PATCH(request: NextRequest) {
   // Criptografa a chave OpenAI antes de persistir
   if (safeBody.openai_api_key && typeof safeBody.openai_api_key === 'string') {
     safeBody.openai_api_key = encrypt(safeBody.openai_api_key)
+  }
+
+  // Sanitiza agent_summary_fields: array de strings não-vazias
+  if ('agent_summary_fields' in safeBody) {
+    const raw = safeBody.agent_summary_fields
+    if (!Array.isArray(raw)) {
+      return NextResponse.json({ error: 'agent_summary_fields deve ser uma lista.' }, { status: 400 })
+    }
+    const cleaned = raw
+      .filter((v): v is string => typeof v === 'string')
+      .map(v => v.trim())
+      .filter(v => v.length > 0)
+    safeBody.agent_summary_fields = cleaned
   }
 
   if (Object.keys(safeBody).length === 0) {

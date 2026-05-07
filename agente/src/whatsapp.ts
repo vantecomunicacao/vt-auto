@@ -21,7 +21,14 @@ export interface ConnectionStatus {
   state?: string
 }
 
-async function configureWebhook(instance: string, webhookUrl: string): Promise<void> {
+const WEBHOOK_EVENTS = [
+  'MESSAGES_UPSERT',
+  'CONNECTION_UPDATE',
+  'LABELS_ASSOCIATION',
+  'LABELS_EDIT',
+]
+
+export async function configureWebhook(instance: string, webhookUrl: string): Promise<void> {
   await fetch(`${EVO_URL}/webhook/set/${instance}`, {
     method: 'POST',
     headers,
@@ -31,7 +38,7 @@ async function configureWebhook(instance: string, webhookUrl: string): Promise<v
         url: webhookUrl,
         webhookByEvents: false,
         webhookBase64: false,
-        events: ['MESSAGES_UPSERT', 'CONNECTION_UPDATE'],
+        events: WEBHOOK_EVENTS,
       },
     }),
   }).catch(() => { /* não crítico */ })
@@ -83,7 +90,7 @@ export async function createOrGetQR(instance: string, webhookUrl: string): Promi
         url: webhookUrl,
         webhookByEvents: false,
         webhookBase64: false,
-        events: ['MESSAGES_UPSERT', 'CONNECTION_UPDATE'],
+        events: WEBHOOK_EVENTS,
       },
     }),
   })

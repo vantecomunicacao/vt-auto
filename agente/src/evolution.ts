@@ -142,3 +142,42 @@ export async function sendPresenceOnce(instance: string, remoteJid: string): Pro
     body: JSON.stringify({ number: remoteJid, presence: 'composing', delay: 0 }),
   }).catch(() => { /* não crítico */ })
 }
+
+// ── Etiquetas (Labels) do WhatsApp Business ──────────────────────────────────
+
+export interface EvolutionLabel {
+  id: string
+  name: string
+  color?: number
+}
+
+export async function findLabels(instance: string): Promise<EvolutionLabel[]> {
+  const res = await fetch(`${EVO_URL}/label/findLabels/${instance}`, {
+    headers: { 'Content-Type': 'application/json', apikey: EVO_KEY },
+  })
+  if (!res.ok) {
+    const body = await res.text()
+    throw new Error(`Evolution findLabels ${res.status}: ${body}`)
+  }
+  const data = await res.json() as Array<{ id?: string; labelId?: string; name?: string; color?: number }>
+  return (Array.isArray(data) ? data : [])
+    .map(l => ({ id: String(l.id ?? l.labelId ?? ''), name: l.name ?? '', color: l.color }))
+    .filter(l => l.id && l.name)
+}
+
+export async function applyLabel(
+  instance: string,
+  remoteJid: string,
+  labelId: string,
+  action: 'add' | 'remove',
+): Promise<void> {
+  const res = await fetch(`${EVO_URL}/label/handleLabel/${instance}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', apikey: EVO_KEY },
+    body: JSON.stringify({ number: remoteJid, labelId, action }),
+  })
+  if (!res.ok) {
+    const body = await res.text()
+    throw new Error(`Evolution handleLabel ${res.status}: ${body}`)
+  }
+}
