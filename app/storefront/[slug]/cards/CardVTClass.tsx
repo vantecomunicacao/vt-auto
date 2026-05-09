@@ -1,27 +1,15 @@
 'use client'
 
 import Link from 'next/link'
-import type { StorefrontSettings } from '@/app/admin/(protected)/storefront/StorefrontSettingsContent'
-import type { StorefrontVehicle } from '../storefront-helpers'
-import { fuelLabel, formatPrice, formatMileage, buildWhatsAppHref } from '../storefront-helpers'
+import { fuelLabel, formatPrice, formatMileage } from '../storefront-helpers'
 import { WhatsAppIcon } from '../storefront-icons'
 import { CarPlaceholder } from '../CarPlaceholder'
 import { AnimatedCard } from '../AnimatedCard'
 import { FavoriteButton } from '../FavoriteButton'
+import { type CardProps, getVehicleLinks } from './shared'
 
-interface Props {
-  vehicle: StorefrontVehicle
-  sf: StorefrontSettings
-  storeSlug: string
-  primaryColor: string
-  secondaryColor: string
-  whatsappPhone: string
-  index: number
-}
-
-export function CardVTClass({ vehicle, sf, storeSlug, primaryColor, secondaryColor, whatsappPhone, index }: Props) {
-  const vehicleHref = `/veiculo/${vehicle.slug}`
-  const waHref = whatsappPhone ? buildWhatsAppHref(whatsappPhone, vehicle) : null
+export function CardVTClass({ vehicle, sf, primaryColor, secondaryColor, whatsappPhone, index }: CardProps) {
+  const { vehicleHref, waHref } = getVehicleLinks(vehicle, whatsappPhone)
 
   // Specs row
   const specParts: string[] = []
