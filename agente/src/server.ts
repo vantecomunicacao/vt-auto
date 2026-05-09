@@ -571,15 +571,7 @@ app.post('/internal/cron/followup', requireCronSecret, (_req, res) => {
   runFollowUpCycle().catch(err => console.error('[cron/followup] erro:', err))
 })
 
-// ── Cron legado (fallback): setInterval ──────────────────────────────────────
-// Mantido em paralelo com pg_cron até confirmarmos 24h do cron rodando.
-// O atomic claim em runFollowUpCycle evita disparos duplicados quando os dois
-// caminhos batem na mesma janela. Após confirmação, remover este bloco.
 if (process.env.NODE_ENV !== 'test') {
-  setInterval(() => {
-    runFollowUpCycle().catch(console.error)
-  }, 5 * 60 * 1000)
-
   app.listen(PORT, () => {
     console.log(`[agente] Serviço rodando em http://localhost:${PORT}`)
   })
