@@ -78,6 +78,8 @@ type FormState = {
   custom_domain: string
   dns_owner: string
 
+  general_notes: string
+
   /** Honeypot: humano deixa vazio. */
   website: string
 }
@@ -99,6 +101,7 @@ const INITIAL: FormState = {
   knowledge_assets: '', faq: '',
   whatsapp_age: '', whatsapp_type: '', whatsapp_exclusive: '',
   custom_domain: '', dns_owner: '',
+  general_notes: '',
   website: '',
 }
 
@@ -112,6 +115,7 @@ const SECTIONS = [
   { id: 's7', title: '7. Horário e operação' },
   { id: 's8', title: '8. Base de conhecimento' },
   { id: 's9', title: '9. Integrações' },
+  { id: 's10', title: '10. Observações' },
 ] as const
 
 export function BriefingForm() {
@@ -120,11 +124,11 @@ export function BriefingForm() {
   const [submitting, setSubmitting] = useState(false)
   const [submitted, setSubmitted] = useState<Briefing | null>(null)
 
-  const totalRequired = 30 // referência aproximada para a barra de progresso
+  const totalRequired = 27 // referência para a barra de progresso (25 campos + payment_methods + salespeople)
   const filledCount = useMemo(() => {
+    // Não inclui primary_color/secondary_color: já vêm com valor padrão e inflariam o progresso falsamente.
     const required: (keyof FormState)[] = [
       'store_name','cnpj','responsible_name','whatsapp','email','address','city','state',
-      'primary_color','secondary_color',
       'business_summary','differentiators','accepts_trade_in',
       'agent_name','agent_tone','agent_voice_note','allow_slang','allow_emoji','greeting',
       'qualification_fields','handoff_triggers',
@@ -622,6 +626,13 @@ export function BriefingForm() {
                 <Input value={form.dns_owner} onChange={e => update('dns_owner', e.target.value)} placeholder="Ex.: agência X / TI interna / eu mesmo" />
               </Field>
             )}
+          </Section>
+
+          {/* SEÇÃO 10 */}
+          <Section title="10. Observações" subtitle="Algo que não coube nas seções acima? Conte aqui.">
+            <Field id="general_notes" label="Observações gerais" hint="Opcional — qualquer detalhe, contexto, expectativa, restrição ou pedido especial que ajude nossa equipe a configurar a loja do jeito certo" error={errors.general_notes}>
+              <Textarea rows={5} value={form.general_notes} onChange={e => update('general_notes', e.target.value)} placeholder="Ex.: temos um evento de lançamento no dia 20 e precisamos do site no ar até lá; preferimos atendimento humano só pra quem fala em compra à vista; etc." />
+            </Field>
           </Section>
 
           {/* Submit */}

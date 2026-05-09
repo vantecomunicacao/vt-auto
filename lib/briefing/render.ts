@@ -185,6 +185,8 @@ ${section('9. Integrações', [
   row('Quem cuida do DNS', b.dns_owner),
 ].join(''))}
 
+${section('10. Observações', row('Observações gerais', b.general_notes))}
+
 <footer>
   Briefing gerado em ${date} via plataforma CarGrow.
 </footer>
@@ -266,6 +268,11 @@ export function renderBriefingText(b: Briefing): string {
   item('Exclusivo?', YES_NO[b.whatsapp_exclusive])
   item('Domínio', b.custom_domain)
   item('DNS', b.dns_owner)
+
+  if (b.general_notes) {
+    sec('10. Observações')
+    item('Observações gerais', b.general_notes)
+  }
 
   return lines.join('\n')
 }

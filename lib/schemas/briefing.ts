@@ -89,6 +89,9 @@ export const briefingSchema = z.object({
   whatsapp_exclusive: z.enum(['yes', 'no', 'unknown']),
   custom_domain:      optionalText(120),
   dns_owner:          optionalText(120),
+
+  // 10. Observações finais
+  general_notes:      optionalText(2000),
 })
 
 export type Briefing = z.infer<typeof briefingSchema>
