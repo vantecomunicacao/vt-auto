@@ -13,6 +13,7 @@ import { runFollowUpCycle } from './followup'
 import { safeDecrypt } from './crypto'
 import { requireAuth, requireSseTicket, requireWebhookSecret } from './auth/middleware'
 import { signTicket } from './auth/sseTicket'
+import crypto from 'crypto'
 
 // ── Tratamento Global de Erros ───────────────────────────────────────────────
 // Evita que o processo morra em caso de exceções não tratadas em tarefas de fundo
@@ -546,7 +547,34 @@ app.get('/logs/stream', requireSseTicket, (req, res) => {
   streamLogsToClient(storeId, res)
 })
 
-// ── Cron: follow-up a cada 5 minutos ─────────────────────────────────────────
+// ── Cron interno: chamado pelo pg_cron via pg_net ────────────────────────────
+// Único caller esperado: trigger_followup() definido na migration 033.
+function requireCronSecret(req: Request, res: Response, next: () => void): void {
+  const expected = process.env.CRON_SECRET ?? ''
+  const provided = (req.headers['x-cron-secret'] ?? '') as string
+  if (!expected) {
+    console.error('[cron] CRON_SECRET não configurado — rejeitando')
+    res.sendStatus(404)
+    return
+  }
+  const a = Buffer.from(provided, 'utf8')
+  const b = Buffer.from(expected, 'utf8')
+  if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) {
+    res.sendStatus(404)
+    return
+  }
+  next()
+}
+
+app.post('/internal/cron/followup', requireCronSecret, (_req, res) => {
+  res.sendStatus(202)
+  runFollowUpCycle().catch(err => console.error('[cron/followup] erro:', err))
+})
+
+// ── Cron legado (fallback): setInterval ──────────────────────────────────────
+// Mantido em paralelo com pg_cron até confirmarmos 24h do cron rodando.
+// O atomic claim em runFollowUpCycle evita disparos duplicados quando os dois
+// caminhos batem na mesma janela. Após confirmação, remover este bloco.
 if (process.env.NODE_ENV !== 'test') {
   setInterval(() => {
     runFollowUpCycle().catch(console.error)
