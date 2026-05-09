@@ -57,14 +57,27 @@ async function checkSupabaseReachable(): Promise<CheckResult> {
 }
 
 async function findTestStore(): Promise<{ id: string; whatsapp_instance: string | null; openai_api_key: string | null } | null> {
-  const { data } = await supabase
+  // Prefere uma loja com WhatsApp conectado — só assim os checks de Evolution
+  // (instance_open, webhook_match) cobrem caminho real.
+  const { data: withWhatsapp } = await supabase
+    .from('stores')
+    .select('id, whatsapp_instance, openai_api_key')
+    .eq('agent_active', true)
+    .not('openai_api_key', 'is', null)
+    .not('whatsapp_instance', 'is', null)
+    .limit(1)
+    .maybeSingle()
+  if (withWhatsapp) return withWhatsapp
+
+  // Fallback: qualquer loja ativa com chave OpenAI (cobre encryption_key, mas não Evolution)
+  const { data: anyActive } = await supabase
     .from('stores')
     .select('id, whatsapp_instance, openai_api_key')
     .eq('agent_active', true)
     .not('openai_api_key', 'is', null)
     .limit(1)
     .maybeSingle()
-  return data ?? null
+  return anyActive ?? null
 }
 
 async function checkEncryptionKey(testStore: { id: string; openai_api_key: string | null } | null): Promise<CheckResult> {
