@@ -22,8 +22,7 @@ function checkRateLimit(ip: string): boolean {
 }
 
 export async function GET(request: Request) {
-  const ip =
-    (request as Request & { headers: Headers }).headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown'
+  const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown'
 
   if (!checkRateLimit(ip)) {
     return NextResponse.json(
@@ -47,8 +46,6 @@ export async function GET(request: Request) {
   )
 
   try {
-    console.log(`🔍 [API] Checando disponibilidade do slug: ${slug}`)
-    
     const { data, error } = await supabase
       .from('stores')
       .select('id')
@@ -56,25 +53,22 @@ export async function GET(request: Request) {
       .maybeSingle()
 
     if (error) {
-      console.error('❌ [API] Erro ao consultar banco:', error.message)
-      return NextResponse.json({ available: false, error: error.message })
+      console.error('[check-subdomain] erro de banco:', error.message)
+      return NextResponse.json({ available: false, error: 'Erro ao consultar disponibilidade.' })
     }
 
-    const available = !data
-    console.log(`✅ [API] Resultado para ${slug}: ${available ? 'DISPONÍVEL' : 'OCUPADO'}`)
-    
     return NextResponse.json(
-      { available },
-      { 
-        headers: { 
+      { available: !data },
+      {
+        headers: {
           'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
           'Pragma': 'no-cache',
-          'Expires': '0'
-        } 
+          'Expires': '0',
+        },
       }
     )
-  } catch (err: any) {
-    console.error('💥 [API] Erro crítico:', err.message)
+  } catch (err) {
+    console.error('[check-subdomain] falha crítica:', err instanceof Error ? err.message : err)
     return NextResponse.json({ available: false, error: 'Erro interno no servidor' })
   }
 }

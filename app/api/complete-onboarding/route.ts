@@ -67,14 +67,13 @@ export async function POST(request: Request) {
       .eq('id', storeUser.store_id)
 
     if (updateError) {
-      console.error('[API Onboarding] Erro ao atualizar stores:', JSON.stringify(updateError, null, 2))
-      return NextResponse.json({ error: updateError.message || JSON.stringify(updateError) }, { status: 500 })
+      console.error('[API Onboarding] Erro ao atualizar stores:', updateError)
+      return NextResponse.json({ error: 'Não foi possível salvar. Tente novamente.' }, { status: 500 })
     }
 
-    // Sucesso absoluto
     return NextResponse.json({ success: true, store_id: storeUser.store_id })
 
-  } catch (err: any) {
+  } catch (err) {
     console.error('[API Onboarding] Falha crítica:', err)
     return NextResponse.json({ error: 'Erro interno no servidor de salvamento' }, { status: 500 })
   }

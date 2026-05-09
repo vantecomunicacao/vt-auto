@@ -23,6 +23,11 @@
 # misc
 .DS_Store
 *.pem
+*.dmg
+
+# scratch — scripts ad-hoc de debug, ficam locais
+scratch/
+agente/scratch/
 
 # debug
 npm-debug.log*
