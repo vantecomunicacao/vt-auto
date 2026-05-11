@@ -9,10 +9,11 @@ type Props = {
   onToggleAi: (lead: Lead) => void
   onUpdateStatus: (lead: Lead) => void
   onDelete: (lead: Lead) => void
+  onClearChat: (lead: Lead) => void
   emptyMessage: string
 }
 
-export default function LeadsKanban({ leads, togglingAi, onToggleAi, onUpdateStatus, onDelete, emptyMessage }: Props) {
+export default function LeadsKanban({ leads, togglingAi, onToggleAi, onUpdateStatus, onDelete, onClearChat, emptyMessage }: Props) {
   if (leads.length === 0) {
     return (
       <div className="bg-card border border-border rounded-xl py-16 text-center text-sm text-muted-foreground">
@@ -104,12 +105,18 @@ export default function LeadsKanban({ leads, togglingAi, onToggleAi, onUpdateSta
                         <span className="text-[10px] text-muted-foreground">{formatRelative(lead.created_at)}</span>
                       </div>
 
-                      <div className="flex items-center gap-3 pt-1">
+                      <div className="flex items-center gap-3 pt-1 flex-wrap">
                         <button
                           onClick={e => { e.stopPropagation(); onUpdateStatus(lead) }}
                           className="text-[10px] text-ds-primary-600 hover:text-ds-primary-800 font-medium underline underline-offset-2"
                         >
                           Atualizar status
+                        </button>
+                        <button
+                          onClick={e => { e.stopPropagation(); onClearChat(lead) }}
+                          className="text-[10px] text-amber-600 hover:text-amber-800 font-medium underline underline-offset-2"
+                        >
+                          Apagar conversa
                         </button>
                         <button
                           onClick={e => { e.stopPropagation(); onDelete(lead) }}

@@ -38,7 +38,7 @@ O serviço Express em `agente/src/server.ts` rodava com `cors()` aberto e zero a
 
 ### CONTEXTO QUE A OUTRA IA PRECISA SABER
 
-- Projeto Coolify: **VT-auto**, UUID `bgco4s4k4004gco44cco8o4o`. **NUNCA tocar em outros projetos.**
+- Projeto Coolify: **CarGrow-prod**, UUID `yqebjlxld70s5dzaxpexot2p`. **NUNCA tocar em outros projetos.**
 - O agente Express roda como serviço separado nesse projeto Coolify. Next.js (frontend) roda em outro deploy.
 - Supabase é o auth provider. JWT já tem custom claims `store_id`, `role`, `is_master` (configurados via Auth Hook). O middleware novo lê esses claims.
 - O webhook do Evolution API hoje aponta para `${PUBLIC_URL}/webhook` (sem secret). Após esta migração, deve apontar para `${PUBLIC_URL}/webhook/${EVOLUTION_WEBHOOK_SECRET}`.
@@ -61,7 +61,7 @@ O serviço Express em `agente/src/server.ts` rodava com `cors()` aberto e zero a
 
 ### TAREFA B — Gerar secrets e configurar env vars no Coolify
 
-**Objetivo:** configurar as 4 env vars novas no projeto VT-auto.
+**Objetivo:** configurar as 4 env vars novas no projeto CarGrow-prod.
 
 **Passos:**
 
@@ -69,7 +69,7 @@ O serviço Express em `agente/src/server.ts` rodava com `cors()` aberto e zero a
    - Pode usar a função Supabase `gen_random_bytes(32)::text` via SQL e converter para hex
    - Ou qualquer fonte de aleatoriedade segura — o requisito é 64 caracteres hex
 2. Anote os 2 valores gerados — vai precisar deles na TAREFA C.
-3. No Coolify, no projeto VT-auto, adicionar as seguintes env vars **na aplicação do agente** (não em outras apps do projeto):
+3. No Coolify, no projeto CarGrow-prod, adicionar as seguintes env vars **na aplicação do agente** (não em outras apps do projeto):
 
 ```
 EVOLUTION_WEBHOOK_SECRET=<primeiro_secret_64_hex>
@@ -106,7 +106,7 @@ AUTH_ENABLED=false
    }
    ```
    onde:
-   - `<PUBLIC_URL>` = valor da env var `PUBLIC_URL` já configurada no Coolify do projeto VT-auto
+   - `<PUBLIC_URL>` = valor da env var `PUBLIC_URL` já configurada no Coolify do projeto CarGrow-prod
    - `<EVOLUTION_WEBHOOK_SECRET>` = o primeiro secret gerado na TAREFA B
 3. Reportar quantas instâncias foram atualizadas.
 
@@ -118,7 +118,7 @@ AUTH_ENABLED=false
 
 **Passos:**
 
-1. Fazer deploy do projeto VT-auto no Coolify (apenas a aplicação do agente, não toda a stack se houver outras).
+1. Fazer deploy do projeto CarGrow-prod no Coolify (apenas a aplicação do agente, não toda a stack se houver outras).
 2. Aguardar o deploy completar (status running, healthcheck passando).
 3. Verificar `GET /health` retornando 200.
 4. Verificar nos logs do container que o serviço subiu sem erro: procurar pela linha `[agente] Serviço rodando em http://localhost:3001`.
@@ -168,7 +168,7 @@ AUTH_ENABLED=false
 ## 3. Critérios de sucesso final
 
 - [ ] Custom claims do Supabase confirmados ativos (TAREFA A)
-- [ ] 4 env vars novas configuradas no Coolify do projeto VT-auto (TAREFA B)
+- [ ] 4 env vars novas configuradas no Coolify do projeto CarGrow-prod (TAREFA B)
 - [ ] 100% das instâncias Evolution apontando para `/webhook/:secret` (TAREFA C)
 - [ ] Deploy do agente bem-sucedido com `AUTH_ENABLED=false` (TAREFA D)
 - [ ] 24h de shadow mode sem `would-reject` legítimos (TAREFA E)

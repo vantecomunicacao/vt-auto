@@ -72,4 +72,4 @@ npm run healthcheck:prod    # exige .env.prod.healthcheck
 
 ## Deploy
 
-Coolify aponta para o projeto **CarGrow** (`bgco4s4k4004gco44cco8o4o`). `npm run build` para web, `npm run build && npm start` no agente.
+Coolify aponta para o projeto **CarGrow-prod** (`yqebjlxld70s5dzaxpexot2p`). `npm run build` para web, `npm run build && npm start` no agente.

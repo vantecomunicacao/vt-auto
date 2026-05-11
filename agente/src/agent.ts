@@ -412,7 +412,7 @@ export async function processMessage({ instance, phone, message, pushName }: Inc
 
     `${stockSummary}\n\nO estoque acima é um resumo. Sempre use a função buscar_veiculos para obter detalhes completos (preço, km, opcionais) antes de apresentar um veículo específico ao cliente. Nunca invente informações de veículos.`,
 
-    'FOTOS — CRÍTICO: Inclua o marcador [FOTOS:marca:modelo] (ex: [FOTOS:Toyota:Corolla]) APENAS na primeira vez que apresentar um veículo na conversa. O sistema enviará as imagens automaticamente. Se o histórico já mostra que você enviou fotos desse mesmo veículo antes, NÃO repita o marcador — siga a conversa sem reenviar. Use o marcador novamente apenas se o cliente trocar de veículo de interesse ou pedir explicitamente para ver as fotos de novo. NUNCA escreva coisas como "[Enviarei as fotos]", "[Fotos do veículo]" ou qualquer texto entre colchetes que não seja um marcador oficial. Os únicos marcadores permitidos são: [FOTOS:marca:modelo], [TRANSBORDO_ATIVADO] e [CONVERSA_ENCERRADA].',
+    'FOTOS — CRÍTICO: Inclua o marcador [FOTOS:marca:modelo] (ex: [FOTOS:Toyota:Corolla]) APENAS na primeira vez que apresentar um veículo na conversa. O sistema enviará as imagens automaticamente. Se o histórico já mostra que você enviou fotos desse mesmo veículo antes, NÃO repita o marcador — siga a conversa sem reenviar. Use o marcador novamente apenas se o cliente trocar de veículo de interesse ou pedir explicitamente para ver as fotos de novo. NUNCA escreva coisas como "[Enviarei as fotos]", "[Fotos do veículo]" ou qualquer texto entre colchetes que não seja um marcador oficial. Os únicos marcadores permitidos são: [FOTOS:marca:modelo], [TRANSBORDO_ATIVADO] e [CONVERSA_ENCERRADA]. FORMATO OBRIGATÓRIO: escreva exatamente [FOTOS:marca:modelo] sem espaços dentro dos colchetes (NUNCA "[ FOTOS:... ]" com espaços, NUNCA quebras de linha dentro). REGRA DE QUANTIDADE: no máximo 1 marcador [FOTOS:...] por resposta. Se apresentar 2+ veículos no mesmo turno, NÃO use marcador nenhum — apenas pergunte ao cliente qual ele quer ver, e envie as fotos só depois que ele escolher.',
 
     'Quando detectar interesse em veículo específico, orçamento, forma de pagamento ou veículo para troca, chame a função registrar_qualificacao imediatamente.',
 
@@ -554,15 +554,15 @@ export async function processMessage({ instance, phone, message, pushName }: Inc
   }
 
   // ── 8. Marcadores + Fotos ────────────────────────────────────────────────
-  const hasTransbordo = reply.includes('[TRANSBORDO_ATIVADO]')
-  const hasEncerramento = reply.includes('[CONVERSA_ENCERRADA]')
+  const hasTransbordo = /\[\s*TRANSBORDO_ATIVADO\s*\]/i.test(reply)
+  const hasEncerramento = /\[\s*CONVERSA_ENCERRADA\s*\]/i.test(reply)
 
-  // Detecta marcador [FOTOS:marca:modelo] na resposta do modelo
-  const fotosMatch = reply.match(/\[FOTOS:([^:]+):([^\]]+)\]/)
+  // Detecta marcador [FOTOS:marca:modelo] na resposta do modelo (tolera espaços)
+  const fotosMatch = reply.match(/\[\s*FOTOS\s*:\s*([^:\]]+?)\s*:\s*([^\]]+?)\s*\]/i)
   const cleanReply = reply
-    .replace(/\[TRANSBORDO_ATIVADO\]/g, '')
-    .replace(/\[CONVERSA_ENCERRADA\]/g, '')
-    .replace(/\[FOTOS:[^\]]+\]/g, '')
+    .replace(/\[\s*TRANSBORDO_ATIVADO\s*\]/gi, '')
+    .replace(/\[\s*CONVERSA_ENCERRADA\s*\]/gi, '')
+    .replace(/\[\s*FOTOS\s*:[^\]]+\]/gi, '')
     .replace(/\[(?:enviar|enviando|enviarei|fotos|imagens|photos|foto)[^\]]*\]/gi, '')
     .replace(/:\s*$/, '')
     .replace(/\n{3,}/g, '\n\n')

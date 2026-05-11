@@ -44,8 +44,10 @@ export default function LeadsContent({ leads }: { leads: Lead[] }) {
   const [errorMsg, setErrorMsg] = useState('')
   const [togglingAi, setTogglingAi] = useState<string | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [clearingChatId, setClearingChatId] = useState<string | null>(null)
   const dialogRef = useRef<HTMLDialogElement>(null)
   const deleteDialogRef = useRef<HTMLDialogElement>(null)
+  const clearChatDialogRef = useRef<HTMLDialogElement>(null)
 
   useEffect(() => {
     const stored = localStorage.getItem(VIEW_STORAGE_KEY)
@@ -113,6 +115,36 @@ export default function LeadsContent({ leads }: { leads: Lead[] }) {
         setLocalLeads(prev => prev.filter(l => l.id !== deletingId))
         closeDeleteDialog()
       }
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  function openClearChatDialog(lead: Lead) {
+    setClearingChatId(lead.id)
+    setErrorMsg('')
+    clearChatDialogRef.current?.showModal()
+  }
+
+  function closeClearChatDialog() {
+    clearChatDialogRef.current?.close()
+    setClearingChatId(null)
+  }
+
+  async function handleClearChat() {
+    if (!clearingChatId) return
+    setSaving(true)
+    setErrorMsg('')
+    try {
+      const res = await fetch(`/api/leads/${clearingChatId}/conversation`, { method: 'DELETE' })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        setErrorMsg(json.error ?? 'Erro ao apagar conversa.')
+        return
+      }
+      closeClearChatDialog()
+    } catch {
+      setErrorMsg('Erro de rede. Tente novamente.')
     } finally {
       setSaving(false)
     }
@@ -213,6 +245,7 @@ export default function LeadsContent({ leads }: { leads: Lead[] }) {
           onToggleAi={handleToggleAi}
           onUpdateStatus={openDialog}
           onDelete={openDeleteDialog}
+          onClearChat={openClearChatDialog}
           emptyMessage={emptyMessage}
         />
       ) : (
@@ -222,6 +255,7 @@ export default function LeadsContent({ leads }: { leads: Lead[] }) {
           onToggleAi={handleToggleAi}
           onUpdateStatus={openDialog}
           onDelete={openDeleteDialog}
+          onClearChat={openClearChatDialog}
           emptyMessage={emptyMessage}
         />
       )}
@@ -267,6 +301,42 @@ export default function LeadsContent({ leads }: { leads: Lead[] }) {
             className="px-4 py-2 text-sm rounded-lg bg-ds-primary-600 hover:bg-ds-primary-700 text-white font-medium transition-colors disabled:opacity-60"
           >
             {saving ? 'Salvando...' : 'Salvar'}
+          </button>
+        </div>
+      </dialog>
+
+      {/* Native Dialog — confirmar apagar conversa */}
+      <dialog
+        ref={clearChatDialogRef}
+        className="rounded-xl shadow-xl border border-border bg-card p-0 w-full max-w-sm backdrop:bg-black/40"
+        onClose={closeClearChatDialog}
+      >
+        <div className="px-5 py-4 border-b border-border">
+          <h2 className="text-base font-semibold text-foreground">Apagar conversa</h2>
+        </div>
+        <div className="px-5 py-4 flex flex-col gap-2">
+          <p className="text-sm text-muted-foreground">
+            Todo o histórico de mensagens deste lead com a IA será apagado. O lead permanece e a IA recomeçará do zero na próxima mensagem.
+          </p>
+          {errorMsg && (
+            <p className="text-xs text-red-600">{errorMsg}</p>
+          )}
+        </div>
+        <div className="px-5 py-4 border-t border-border flex justify-end gap-2">
+          <button
+            type="button"
+            onClick={closeClearChatDialog}
+            className="px-4 py-2 text-sm rounded-lg border border-border bg-background hover:bg-muted text-foreground transition-colors"
+          >
+            Cancelar
+          </button>
+          <button
+            type="button"
+            onClick={handleClearChat}
+            disabled={saving}
+            className="px-4 py-2 text-sm rounded-lg bg-red-600 hover:bg-red-700 text-white font-medium transition-colors disabled:opacity-60"
+          >
+            {saving ? 'Apagando...' : 'Apagar conversa'}
           </button>
         </div>
       </dialog>

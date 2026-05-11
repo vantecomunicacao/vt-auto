@@ -36,11 +36,11 @@ b) Pergunte qual mensagem de commit usar (ou sugira uma com base nas mudanças, 
 c) Faça o commit (sem `--no-verify`, sem `git add -A` cego — adicione arquivos por nome) e pushe pra `origin/master`.
 
 ### 3. Deploy no Coolify
-Use o MCP do Coolify (`mcp__coolify__deploy`) para o projeto **CarGrow** (uuid: `bgco4s4k4004gco44cco8o4o`).
+Use o MCP do Coolify (`mcp__coolify__deploy`) para o projeto **CarGrow-prod** (uuid: `yqebjlxld70s5dzaxpexot2p`).
 
 **Apps em produção:**
-- **CarGrow-App** (uuid: `hos8go8o0go84cs0go0sgggw`) — frontend e admin
-- **CarGrow-Agent** (uuid: `cgo880kwco04wwc4scso4c8o`) — backend/IA/webhook
+- **CarGrow-App** (uuid: `slfhqipyz3q5klx3qzv4hjdy`) — frontend e admin
+- **CarGrow-Agent** (uuid: `wea9tc3yq5zhsrschv03m3zw`) — backend/IA/webhook
 
 Deploy só do que foi alterado:
 - Mudanças em `agente/` → deploy só de **CarGrow-Agent**
@@ -51,7 +51,7 @@ Use `force=false` (deploy normal, com cache).
 
 ### 4. Confirmação final
 Mostre o(s) UUID(s) do(s) deployment(s) iniciado(s) e o link do Coolify pra acompanhar:
-`http://72.60.248.166:8000/project/bgco4s4k4004gco44cco8o4o`
+`http://2.24.91.39:8000/project/yqebjlxld70s5dzaxpexot2p`
 
 ## Observações
 - **Nunca** interaja com outros projetos do Coolify além do CarGrow.

@@ -1,21 +1,16 @@
-# Deploy VT-auto no Coolify
+# Deploy CarGrow no Coolify
 
-Faça o deploy do projeto VT-auto no Coolify seguindo estes passos:
+Faça o deploy do projeto **CarGrow-prod** no Coolify seguindo estes passos:
 
-1. Liste os serviços do projeto VT-auto (uuid: `bgco4s4k4004gco44cco8o4o`) usando a API do Coolify:
-   ```
-   GET http://72.60.248.166:8000/api/v1/projects/bgco4s4k4004gco44cco8o4o
-   Authorization: Bearer 8|yOvoaWMzVNxbmAoL3x5z7wiw1EECKiF5dOG795YUfe2bf2e7
-   ```
+1. Liste os apps do projeto **CarGrow-prod** (uuid: `yqebjlxld70s5dzaxpexot2p`) usando o MCP do Coolify (`mcp__coolify__list_applications`).
 
-2. Mostre os serviços disponíveis para o usuário escolher qual fazer deploy (se houver mais de um).
+2. Mostre os apps disponíveis para o usuário escolher qual fazer deploy:
+   - **CarGrow-App** (uuid: `slfhqipyz3q5klx3qzv4hjdy`) — frontend Next.js + admin
+   - **CarGrow-Agent** (uuid: `wea9tc3yq5zhsrschv03m3zw`) — backend/IA/webhook
 
-3. Execute o deploy do serviço escolhido via:
-   ```
-   POST http://72.60.248.166:8000/api/v1/deploy?uuid={SERVICE_UUID}&force=false
-   Authorization: Bearer 8|yOvoaWMzVNxbmAoL3x5z7wiw1EECKiF5dOG795YUfe2bf2e7
-   ```
+3. Execute o deploy do app escolhido via `mcp__coolify__deploy` (use `force=false` para deploy normal com cache).
 
-4. Informe o status do deploy ao usuário.
+4. Informe o status do deploy ao usuário e mostre o link para acompanhar:
+   `http://2.24.91.39:8000/project/yqebjlxld70s5dzaxpexot2p`
 
-Nunca interaja com outros projetos do Coolify além do VT-auto.
+Nunca interaja com outros projetos do Coolify além do CarGrow-prod.

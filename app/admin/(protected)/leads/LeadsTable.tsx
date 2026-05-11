@@ -10,10 +10,11 @@ type Props = {
   onToggleAi: (lead: Lead) => void
   onUpdateStatus: (lead: Lead) => void
   onDelete: (lead: Lead) => void
+  onClearChat: (lead: Lead) => void
   emptyMessage: string
 }
 
-export default function LeadsTable({ leads, togglingAi, onToggleAi, onUpdateStatus, onDelete, emptyMessage }: Props) {
+export default function LeadsTable({ leads, togglingAi, onToggleAi, onUpdateStatus, onDelete, onClearChat, emptyMessage }: Props) {
   const [expandedId, setExpandedId] = useState<string | null>(null)
 
   if (leads.length === 0) {
@@ -118,6 +119,12 @@ export default function LeadsTable({ leads, togglingAi, onToggleAi, onUpdateStat
                           className="text-xs text-ds-primary-600 hover:text-ds-primary-800 font-medium underline underline-offset-2"
                         >
                           Atualizar status
+                        </button>
+                        <button
+                          onClick={e => { e.stopPropagation(); onClearChat(lead) }}
+                          className="text-xs text-amber-600 hover:text-amber-800 font-medium underline underline-offset-2"
+                        >
+                          Apagar conversa
                         </button>
                         <button
                           onClick={e => { e.stopPropagation(); onDelete(lead) }}
