@@ -472,6 +472,76 @@ describe('processMessage — buscar_veiculos sem marcador', () => {
   })
 })
 
+describe('processMessage — presented_vehicles (antirrepetição)', () => {
+  it('1ª apresentação: chama searchVehicles e persiste o veículo em presented_vehicles', async () => {
+    setupHappyPath({}, { presented_vehicles: {} })
+    mockSearchVehicles.mockResolvedValue('🚗 Toyota Corolla XEi 2.0 2023 — R$ 142.900')
+
+    openaiCreateMock
+      .mockResolvedValueOnce({ choices: [{ message: { content: 'nao' } }] }) // classifier
+      .mockResolvedValueOnce({                                                // buscar_veiculos
+        choices: [{ finish_reason: 'tool_calls', message: {
+          tool_calls: [{ id: 'tc1', function: { name: 'buscar_veiculos', arguments: JSON.stringify({ marca: 'Toyota', modelo: 'Corolla' }) } }],
+        }}],
+        usage: { prompt_tokens: 10, completion_tokens: 5 },
+      })
+      .mockResolvedValueOnce(makeOpenAIReply('O Corolla é excelente! Quer financiar ou pagar à vista?'))
+
+    await processMessage(MSG_PARAMS)
+
+    // A busca real aconteceu (1ª vez)
+    expect(mockSearchVehicles).toHaveBeenCalled()
+    // E o veículo foi registrado como apresentado
+    expect(supabaseMock.update).toHaveBeenCalledWith(expect.objectContaining({
+      presented_vehicles: expect.objectContaining({ 'toyota-corolla': expect.any(String) }),
+    }))
+  })
+
+  it('2ª apresentação: NÃO chama searchVehicles e loga vehicle_search_skipped', async () => {
+    setupHappyPath({}, { presented_vehicles: { 'toyota-corolla': '2026-05-01T00:00:00.000Z' } })
+
+    openaiCreateMock
+      .mockResolvedValueOnce({ choices: [{ message: { content: 'nao' } }] }) // classifier
+      .mockResolvedValueOnce({                                                // buscar_veiculos (mesmo carro)
+        choices: [{ finish_reason: 'tool_calls', message: {
+          tool_calls: [{ id: 'tc1', function: { name: 'buscar_veiculos', arguments: JSON.stringify({ marca: 'Toyota', modelo: 'Corolla' }) } }],
+        }}],
+        usage: { prompt_tokens: 10, completion_tokens: 5 },
+      })
+      .mockResolvedValueOnce(makeOpenAIReply('Quer financiar ou pagar à vista?'))
+
+    await processMessage(MSG_PARAMS)
+
+    // A busca foi bloqueada pelo guard
+    expect(mockSearchVehicles).not.toHaveBeenCalled()
+    expect(mockLogStep).toHaveBeenCalledWith(expect.objectContaining({
+      step: 'vehicle_search_skipped',
+    }))
+  })
+
+  it('veículo diferente: chama searchVehicles mesmo com outro já apresentado', async () => {
+    setupHappyPath({}, { presented_vehicles: { 'toyota-corolla': '2026-05-01T00:00:00.000Z' } })
+    mockSearchVehicles.mockResolvedValue('🚗 Volkswagen T-Cross Highline TSI 2023 — R$ 134.990')
+
+    openaiCreateMock
+      .mockResolvedValueOnce({ choices: [{ message: { content: 'nao' } }] }) // classifier
+      .mockResolvedValueOnce({                                                // buscar_veiculos (carro NOVO)
+        choices: [{ finish_reason: 'tool_calls', message: {
+          tool_calls: [{ id: 'tc1', function: { name: 'buscar_veiculos', arguments: JSON.stringify({ marca: 'Volkswagen', modelo: 'T-Cross' }) } }],
+        }}],
+        usage: { prompt_tokens: 10, completion_tokens: 5 },
+      })
+      .mockResolvedValueOnce(makeOpenAIReply('Temos o T-Cross disponível!'))
+
+    await processMessage(MSG_PARAMS)
+
+    expect(mockSearchVehicles).toHaveBeenCalled()
+    expect(supabaseMock.update).toHaveBeenCalledWith(expect.objectContaining({
+      presented_vehicles: expect.objectContaining({ 'volkswagen-t-cross': expect.any(String) }),
+    }))
+  })
+})
+
 describe('processMessage — persistência', () => {
   it('salva mensagem do usuário e resposta do assistente no banco', async () => {
     setupHappyPath()

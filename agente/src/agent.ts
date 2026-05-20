@@ -289,7 +289,7 @@ export async function processMessage({ instance, phone, message, pushName }: Inc
   const t1 = Date.now()
   let { data: lead } = await supabase
     .from('leads')
-    .select('id, ai_active, name, follow_up_count, last_human_message_at, vehicle_interest, budget, payment_method, trade_in, ai_paused_reason, ai_paused_until')
+    .select('id, ai_active, name, follow_up_count, last_human_message_at, vehicle_interest, budget, payment_method, trade_in, ai_paused_reason, ai_paused_until, presented_vehicles')
     .eq('store_id', store.id)
     .eq('phone', phone)
     .single()
@@ -298,13 +298,13 @@ export async function processMessage({ instance, phone, message, pushName }: Inc
     const { data: newLead } = await supabase.from('leads').upsert({
       store_id: store.id, phone, name: pushName ?? null, source: 'whatsapp', ai_active: true,
     }, { onConflict: 'store_id,phone', ignoreDuplicates: true })
-      .select('id, ai_active, name, follow_up_count, last_human_message_at, vehicle_interest, budget, payment_method, trade_in, ai_paused_reason, ai_paused_until').single()
+      .select('id, ai_active, name, follow_up_count, last_human_message_at, vehicle_interest, budget, payment_method, trade_in, ai_paused_reason, ai_paused_until, presented_vehicles').single()
     lead = newLead
 
     // Se upsert retornou vazio (conflito ignorado), busca o registro existente
     if (!lead) {
       const { data: existingLead } = await supabase.from('leads')
-        .select('id, ai_active, name, follow_up_count, last_human_message_at, vehicle_interest, budget, payment_method, trade_in, ai_paused_reason, ai_paused_until')
+        .select('id, ai_active, name, follow_up_count, last_human_message_at, vehicle_interest, budget, payment_method, trade_in, ai_paused_reason, ai_paused_until, presented_vehicles')
         .eq('store_id', store.id)
         .eq('phone', phone)
         .single()
@@ -429,11 +429,17 @@ export async function processMessage({ instance, phone, message, pushName }: Inc
 
   const agora = new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', dateStyle: 'short', timeStyle: 'short' })
 
+  const presentedVehicles = (lead?.presented_vehicles ?? {}) as Record<string, string>
+  const presentedList = Object.keys(presentedVehicles)
+
   const leadContext = [
     lead?.vehicle_interest ? `- Interesse: ${lead.vehicle_interest}` : '',
     lead?.budget ? `- Orçamento: ${lead.budget}` : '',
     lead?.payment_method ? `- Forma de pagamento: ${lead.payment_method}` : '',
     lead?.trade_in ? `- Veículo para troca: ${lead.trade_in}` : '',
+    presentedList.length > 0
+      ? `- Veículos JÁ APRESENTADOS com ficha completa nesta conversa: ${presentedList.join(', ')}. NÃO repita marca, modelo, ano, cor, km, opcionais ou preço desses veículos — apenas responda à mensagem atual e siga para a próxima pergunta de qualificação.`
+      : '',
   ].filter(Boolean)
 
   const resolvedAgentPrompt = applyPromptVariables(
@@ -454,7 +460,7 @@ export async function processMessage({ instance, phone, message, pushName }: Inc
       ? `## Base de conhecimento:\n${knowledge}`
       : '',
 
-    `${stockSummary}\n\nO estoque acima é um resumo. Use a função buscar_veiculos para obter detalhes completos (preço, km, opcionais) na PRIMEIRA vez que precisar apresentar um veículo específico ao cliente. Se você já apresentou esse veículo antes nesta conversa (os detalhes estão no histórico acima), NÃO chame a função de novo nem repita as mesmas informações — apenas responda a pergunta atual do cliente e siga em frente. Nunca invente informações de veículos.`,
+    `${stockSummary}\n\nO estoque acima é um resumo. Use a função buscar_veiculos para obter detalhes completos (preço, km, opcionais) na PRIMEIRA vez que precisar apresentar um veículo específico ao cliente. Se você já apresentou esse veículo antes nesta conversa (os detalhes estão no histórico acima), NÃO chame a função de novo nem repita as mesmas informações — apenas responda a pergunta atual do cliente e siga em frente. Nunca invente informações de veículos.\n\nREGRA ANTIRREPETIÇÃO CRÍTICA: Se a conversa já passou da etapa de apresentação e o veículo já foi detalhado/apresentado no histórico da conversa, IGNORE as instruções de "Apresente o veículo" ou "Envie as fotos" da Etapa 1. Prossiga diretamente para as perguntas de qualificação pendentes (Financiamento, Troca, Agendamento, etc.). NUNCA repita a ficha técnica, detalhes ou preço do carro a cada resposta, a menos que o cliente faça uma pergunta direta sobre alguma característica.`,
 
     'FOTOS — CRÍTICO: Inclua o marcador [FOTOS:marca:modelo] (ex: [FOTOS:Toyota:Corolla]) APENAS na primeira vez que apresentar um veículo na conversa. O sistema enviará as imagens automaticamente. Se o histórico já mostra que você enviou fotos desse mesmo veículo antes, NÃO repita o marcador — siga a conversa sem reenviar. Use o marcador novamente apenas se o cliente trocar de veículo de interesse ou pedir explicitamente para ver as fotos de novo. NUNCA escreva coisas como "[Enviarei as fotos]", "[Fotos do veículo]" ou qualquer texto entre colchetes que não seja um marcador oficial. Os únicos marcadores permitidos são: [FOTOS:marca:modelo], [TRANSBORDO_ATIVADO] e [CONVERSA_ENCERRADA]. FORMATO OBRIGATÓRIO: escreva exatamente [FOTOS:marca:modelo] sem espaços dentro dos colchetes (NUNCA "[ FOTOS:... ]" com espaços, NUNCA quebras de linha dentro). REGRA DE QUANTIDADE: no máximo 1 marcador [FOTOS:...] por resposta. Se apresentar 2+ veículos no mesmo turno, NÃO use marcador nenhum — apenas pergunte ao cliente qual ele quer ver, e envie as fotos só depois que ele escolher.',
 
@@ -539,9 +545,34 @@ export async function processMessage({ instance, phone, message, pushName }: Inc
       for (const toolCall of toolCalls) {
         if (toolCall.function.name === 'buscar_veiculos') {
           const filters = JSON.parse(toolCall.function.arguments) as { marca?: string; modelo?: string; preco_min?: number; preco_max?: number; ano_min?: number; ano_max?: number; combustivel?: string; transmissao?: string }
-          const searchResult = await searchVehicles(store.id, filters)
-          await logStep({ store_id: store.id, session_id: sessionId, phone, step: 'vehicle_search', status: 'ok', data: { filters, preview: searchResult.slice(0, 100) } })
-          chatMessages.push({ role: 'tool', tool_call_id: toolCall.id, content: searchResult })
+
+          // Chave de veículo específico (só quando marca E modelo estão definidos).
+          // Buscas amplas (por preço, faixa, etc.) não entram nessa lógica.
+          const vehicleKey = filters.marca && filters.modelo
+            ? `${filters.marca}-${filters.modelo}`.toLowerCase().replace(/\s+/g, '-')
+            : null
+
+          if (vehicleKey && presentedVehicles[vehicleKey]) {
+            // Já apresentado nesta conversa: devolve stub em vez da ficha completa,
+            // para o modelo não ter material para repetir.
+            await logStep({ store_id: store.id, session_id: sessionId, phone, step: 'vehicle_search_skipped', status: 'ok', data: { reason: 'já apresentado nesta conversa', key: vehicleKey, presented_at: presentedVehicles[vehicleKey] } })
+            chatMessages.push({
+              role: 'tool',
+              tool_call_id: toolCall.id,
+              content: `O veículo ${filters.marca} ${filters.modelo} já foi apresentado com ficha completa nesta conversa. NÃO repita marca, modelo, ano, cor, km, opcionais ou preço. Responda apenas à mensagem atual do cliente e siga para a próxima pergunta de qualificação. Se o cliente perguntou diretamente sobre uma característica específica, responda só ela em uma linha.`,
+            })
+          } else {
+            const searchResult = await searchVehicles(store.id, filters)
+            await logStep({ store_id: store.id, session_id: sessionId, phone, step: 'vehicle_search', status: 'ok', data: { filters, preview: searchResult.slice(0, 100) } })
+            chatMessages.push({ role: 'tool', tool_call_id: toolCall.id, content: searchResult })
+
+            // Marca como apresentado (1ª vez) — persiste e atualiza o estado em memória.
+            if (vehicleKey && lead) {
+              presentedVehicles[vehicleKey] = new Date().toISOString()
+              lead.presented_vehicles = presentedVehicles
+              await supabase.from('leads').update({ presented_vehicles: presentedVehicles }).eq('id', lead.id)
+            }
+          }
         }
 
         if (toolCall.function.name === 'registrar_qualificacao') {
