@@ -115,8 +115,12 @@ describe('PATCH /api/leads/[id]', () => {
 })
 
 describe('DELETE /api/leads/[id]', () => {
-  it('deleta o lead com sucesso', async () => {
-    const chain = makeSupabaseChain([{ data: null, error: null }])
+  it('deleta o lead com sucesso (sem phone: não faz cascade)', async () => {
+    // 1º select retorna lead sem phone → pula cascade; 2º (await) é o delete do lead
+    const chain = makeSupabaseChain([
+      { data: { store_id: 's1', phone: null }, error: null },
+      { data: null, error: null },
+    ])
     mockSupabaseModule(chain)
     const { DELETE } = await importRoute()
 
@@ -129,9 +133,29 @@ describe('DELETE /api/leads/[id]', () => {
     expect(chain.eq).toHaveBeenCalledWith('id', 'abc')
   })
 
-  it('retorna 500 quando o delete falha', async () => {
+  it('faz cascade: apaga conversas e logs do telefone antes de remover o lead', async () => {
+    const chain = makeSupabaseChain([
+      { data: { store_id: 's1', phone: '5511999990000' }, error: null }, // select store_id/phone
+      { data: null, error: null }, // delete agent_conversations
+      { data: null, error: null }, // delete agent_logs
+      { data: null, error: null }, // delete lead
+    ])
+    mockSupabaseModule(chain)
+    const { DELETE } = await importRoute()
+
+    const req = new Request('http://localhost/api/leads/abc', { method: 'DELETE' })
+    const res = await DELETE(req as never, makeParams('abc') as never)
+
+    expect(res.status).toBe(200)
+    expect(chain.from).toHaveBeenCalledWith('agent_conversations')
+    expect(chain.from).toHaveBeenCalledWith('agent_logs')
+    expect(chain.eq).toHaveBeenCalledWith('phone', '5511999990000')
+  })
+
+  it('retorna 500 quando o delete do lead falha', async () => {
     mockSupabaseModule(makeSupabaseChain([
-      { data: null, error: { message: 'fk violation' } },
+      { data: { store_id: 's1', phone: null }, error: null }, // select
+      { data: null, error: { message: 'fk violation' } },     // delete lead falha
     ]))
     const { DELETE } = await importRoute()
 
@@ -140,5 +164,55 @@ describe('DELETE /api/leads/[id]', () => {
 
     expect(res.status).toBe(500)
     expect(await res.json()).toMatchObject({ error: 'fk violation' })
+  })
+})
+
+describe('DELETE /api/leads/[id]/conversation', () => {
+  async function importConvRoute() {
+    return await import('@/app/api/leads/[id]/conversation/route')
+  }
+
+  it('zera mensagens, presented_vehicles e logs do lead', async () => {
+    const chain = makeSupabaseChain([
+      { data: { store_id: 's1', phone: '5511999990000' }, error: null }, // select lead
+      { data: null, error: null }, // delete agent_conversations
+      { data: null, error: null }, // update presented_vehicles
+      { data: null, error: null }, // delete agent_logs
+    ])
+    mockSupabaseModule(chain)
+    const { DELETE } = await importConvRoute()
+
+    const req = new Request('http://localhost/api/leads/abc/conversation', { method: 'DELETE' })
+    const res = await DELETE(req as never, makeParams('abc') as never)
+
+    expect(res.status).toBe(200)
+    expect(await res.json()).toEqual({ success: true })
+    expect(chain.from).toHaveBeenCalledWith('agent_conversations')
+    expect(chain.update).toHaveBeenCalledWith({ presented_vehicles: {} })
+    expect(chain.from).toHaveBeenCalledWith('agent_logs')
+  })
+
+  it('retorna 404 quando o lead não existe', async () => {
+    mockSupabaseModule(makeSupabaseChain([
+      { data: null, error: { message: 'not found' } },
+    ]))
+    const { DELETE } = await importConvRoute()
+
+    const req = new Request('http://localhost/api/leads/abc/conversation', { method: 'DELETE' })
+    const res = await DELETE(req as never, makeParams('abc') as never)
+
+    expect(res.status).toBe(404)
+  })
+
+  it('retorna 400 quando o lead não tem telefone', async () => {
+    mockSupabaseModule(makeSupabaseChain([
+      { data: { store_id: 's1', phone: null }, error: null },
+    ]))
+    const { DELETE } = await importConvRoute()
+
+    const req = new Request('http://localhost/api/leads/abc/conversation', { method: 'DELETE' })
+    const res = await DELETE(req as never, makeParams('abc') as never)
+
+    expect(res.status).toBe(400)
   })
 })

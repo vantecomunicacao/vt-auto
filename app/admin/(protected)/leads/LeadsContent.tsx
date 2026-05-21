@@ -316,7 +316,7 @@ export default function LeadsContent({ leads }: { leads: Lead[] }) {
         </div>
         <div className="px-5 py-4 flex flex-col gap-2">
           <p className="text-sm text-muted-foreground">
-            Todo o histórico de mensagens deste lead com a IA será apagado. O lead permanece e a IA recomeçará do zero na próxima mensagem.
+            Todo o histórico deste lead com a IA será apagado: mensagens, fotos já enviadas e veículos já apresentados. O lead permanece e a IA recomeçará do zero na próxima mensagem.
           </p>
           {errorMsg && (
             <p className="text-xs text-red-600">{errorMsg}</p>

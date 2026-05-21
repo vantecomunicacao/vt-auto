@@ -53,13 +53,27 @@ export async function PATCH(
   return NextResponse.json({ success: true })
 }
 
-// DELETE /api/leads/[id] — remove o lead
+// DELETE /api/leads/[id] — remove o lead em cascata: apaga também as mensagens e os
+// logs do agente vinculados ao telefone (que ficam órfãos por store_id+phone, já que
+// não há FK), evitando que o histórico antigo "ressuscite" quando a pessoa volta a falar.
 export async function DELETE(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params
   const admin = createAdminClient()
+
+  // Busca store_id + phone para limpar o que é vinculado por telefone
+  const { data: lead } = await admin
+    .from('leads')
+    .select('store_id, phone')
+    .eq('id', id)
+    .single()
+
+  if (lead?.phone) {
+    await admin.from('agent_conversations').delete().eq('store_id', lead.store_id).eq('phone', lead.phone)
+    await admin.from('agent_logs').delete().eq('store_id', lead.store_id).eq('phone', lead.phone)
+  }
 
   const { error } = await admin.from('leads').delete().eq('id', id)
 
